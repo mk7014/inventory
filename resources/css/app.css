@@ -1,0 +1,205 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* ── Sidebar navigation ──────────────────────────────────────────── */
+
+.nav-single,
+.nav-parent-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.48);
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.2s ease;
+    position: relative;
+}
+
+.nav-single:hover,
+.nav-parent-btn:hover {
+    color: rgba(255, 255, 255, 0.88);
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+.nav-single.nav-active {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.11);
+}
+
+.nav-single.nav-active .nav-icon-wrap {
+    background-color: rgba(52, 211, 153, 0.18);
+    color: rgb(110, 231, 183);
+}
+
+.nav-group.open > .nav-parent-btn {
+    color: rgba(255, 255, 255, 0.88);
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+.nav-group.open > .nav-parent-btn .nav-icon-wrap {
+    background-color: rgba(52, 211, 153, 0.15);
+    color: rgb(110, 231, 183);
+}
+
+.nav-icon-wrap {
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    background-color: rgba(255, 255, 255, 0.05);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.nav-label {
+    flex: 1;
+    letter-spacing: 0.01em;
+}
+
+.nav-arrow {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-group.open .nav-arrow {
+    transform: rotate(90deg);
+}
+
+/* Accordion submenu */
+.nav-submenu {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Child items */
+.nav-child {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4375rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.42);
+    text-decoration: none;
+    transition: color 0.2s ease, background-color 0.2s ease, padding-left 0.2s ease;
+    position: relative;
+}
+
+.nav-child::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 0;
+    background: rgb(52, 211, 153);
+    border-radius: 1px;
+    transition: height 0.25s ease;
+}
+
+.nav-child:hover {
+    color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(255, 255, 255, 0.06);
+    padding-left: 1rem;
+}
+
+.nav-child:hover::before {
+    height: 55%;
+}
+
+.nav-child.nav-child-active {
+    color: rgb(110, 231, 183);
+    background-color: rgba(52, 211, 153, 0.09);
+    padding-left: 1rem;
+}
+
+.nav-child.nav-child-active::before {
+    height: 65%;
+}
+
+/* Sidebar scrollbar */
+#sidebar-nav::-webkit-scrollbar {
+    width: 3px;
+}
+#sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+#sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+/* ── Flash messages ──────────────────────────────────────────────── */
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to   { opacity: 0; transform: translateY(-6px); }
+}
+
+.flash-msg {
+    animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* ── Stat cards ──────────────────────────────────────────────────── */
+
+.stat-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.09);
+}
+
+/* ── Table row hover ─────────────────────────────────────────────── */
+
+.tbl-row {
+    transition: background-color 0.15s ease;
+}
+
+.tbl-row:hover {
+    background-color: #f8faf9;
+}
+
+/* ── Page fade-in ────────────────────────────────────────────────── */
+
+@keyframes pageFade {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-fade {
+    animation: pageFade 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
