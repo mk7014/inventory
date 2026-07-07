@@ -15,7 +15,13 @@ class RequisitionController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Requisition::query()->with('employee');
+        $query = Requisition::query()
+            ->with('employee')
+            ->withSum('payments as paid_total', 'amount')
+            ->withCount([
+                'items as product_items_count' => fn ($q) => $q->where('item_type', 'product'),
+                'items as purchased_items_count' => fn ($q) => $q->where('item_type', 'product')->whereNotNull('purchased_at'),
+            ]);
 
         if (! $request->user()->isAdmin()) {
             $query->where('employee_id', $request->user()->id);

@@ -17,6 +17,8 @@ class RequisitionItem extends Model
         'quantity',
         'purchase_price',
         'subtotal',
+        'purchased_at',
+        'purchased_by',
     ];
 
     protected function casts(): array
@@ -25,6 +27,7 @@ class RequisitionItem extends Model
             'quantity'       => 'integer',
             'purchase_price' => 'decimal:2',
             'subtotal'       => 'decimal:2',
+            'purchased_at'   => 'datetime',
         ];
     }
 
@@ -36,6 +39,11 @@ class RequisitionItem extends Model
     public function isCostItem(): bool
     {
         return $this->item_type === 'cost';
+    }
+
+    public function isPurchased(): bool
+    {
+        return $this->purchased_at !== null;
     }
 
     public function requisition()
@@ -51,5 +59,10 @@ class RequisitionItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function purchaser()
+    {
+        return $this->belongsTo(User::class, 'purchased_by');
     }
 }

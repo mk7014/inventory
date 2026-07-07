@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\BalanceController;
 use App\Http\Controllers\DarazAccountController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RequisitionController;
 use App\Http\Controllers\RequisitionExpenseController;
+use App\Http\Controllers\RequisitionItemPurchaseController;
 use App\Http\Controllers\RequisitionReviewController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SaleController;
@@ -37,10 +39,17 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/expenses', [RequisitionExpenseController::class, 'index'])->name('expenses.index');
     Route::post('/requisitions/{requisition}/expenses', [RequisitionExpenseController::class, 'store'])->name('requisitions.expenses.store');
 
+    Route::get('/my-balance', [BalanceController::class, 'mine'])->name('balance.mine');
+    Route::get('/my-balance/received', [BalanceController::class, 'received'])->name('balance.received');
+    Route::get('/my-balance/spent', [BalanceController::class, 'spent'])->name('balance.spent');
+    Route::get('/my-balance/statement', [BalanceController::class, 'statement'])->name('balance.statement');
+    Route::post('/requisitions/{requisition}/items/{item}/purchase', RequisitionItemPurchaseController::class)->name('requisitions.items.purchase');
+
     Route::middleware('role:admin')->group(function () {
         Route::post('/requisitions/{requisition}/review', RequisitionReviewController::class)->name('requisitions.review');
         Route::post('/requisitions/{requisition}/payments', [PaymentController::class, 'store'])->name('requisitions.payments.store');
         Route::resource('accounts', DarazAccountController::class)->only(['index', 'store', 'update']);
         Route::resource('users', UserController::class)->only(['index', 'store', 'update']);
+        Route::get('/balances', [BalanceController::class, 'index'])->name('balances.index');
     });
 });

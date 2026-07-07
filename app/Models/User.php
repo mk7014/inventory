@@ -24,6 +24,7 @@ class User extends Authenticatable
         'password',
         'role',
         'status',
+        'balance',
     ];
 
     /**
@@ -46,6 +47,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'balance' => 'decimal:2',
         ];
     }
 
@@ -62,5 +64,10 @@ class User extends Authenticatable
     public function requisitions()
     {
         return $this->hasMany(Requisition::class, 'employee_id');
+    }
+
+    public function balanceTransactions()
+    {
+        return $this->hasMany(BalanceTransaction::class);
     }
 }

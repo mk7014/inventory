@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class PaymentService
 {
-    public function __construct(private AuditService $auditService)
+    public function __construct(private AuditService $auditService, private BalanceService $balanceService)
     {
     }
 
@@ -24,13 +24,6 @@ class PaymentService
                 throw ValidationException::withMessages(['requisition_id' => 'Only approved requisitions can receive payment.']);
             }
 
-            $alreadyPaid = (float) $locked->payments->sum('amount');
-            $approvedAmount = (float) $locked->approved_amount;
-
-            if ($alreadyPaid + (float) $data['amount'] > $approvedAmount) {
-                throw ValidationException::withMessages(['amount' => 'Payment cannot exceed approved amount.']);
-            }
-
             $payment = Payment::create([
                 'requisition_id' => $locked->id,
                 'paid_to' => $locked->employee_id,
@@ -41,6 +34,17 @@ class PaymentService
                 'reference' => $data['reference'] ?? null,
                 'note' => $data['note'] ?? null,
             ]);
+
+            // Credit the paid amount to the employee's balance (single source of
+            // truth = money actually paid out). Mirrors StockService usage.
+            $this->balanceService->credit(
+                $locked->employee,
+                (float) $data['amount'],
+                $payment,
+                $admin->id,
+                'credit_payment',
+                'Payment for requisition '.$locked->requisition_number,
+            );
 
             $this->auditService->record('payment.created', $payment, null, $payment->toArray());
             $locked->employee->notify(new SystemNotification('Payment recorded', route('requisitions.show', $locked), 'payment'));

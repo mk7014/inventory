@@ -65,6 +65,7 @@
                                 <th class="px-5 py-3">Qty</th>
                                 <th class="px-5 py-3">Unit Cost</th>
                                 <th class="px-5 py-3">Subtotal</th>
+                                <th class="px-5 py-3 text-right">Purchase</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -76,6 +77,31 @@
                                 <td class="px-5 py-3 text-slate-700">{{ $item->quantity }}</td>
                                 <td class="px-5 py-3 text-slate-700">৳ {{ number_format($item->purchase_price, 2) }}</td>
                                 <td class="px-5 py-3 font-semibold text-slate-800">৳ {{ number_format($item->subtotal, 2) }}</td>
+                                <td class="px-5 py-3 text-right">
+                                    @if($item->isPurchased())
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1
+                                                     text-[10px] font-semibold text-emerald-800"
+                                              title="Purchased on {{ $item->purchased_at->format('d M Y, h:i A') }}">
+                                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                            Purchased
+                                        </span>
+                                    @elseif($isOwner && $requisition->status === 'approved')
+                                        <form method="post"
+                                              action="{{ route('requisitions.items.purchase', [$requisition, $item]) }}"
+                                              onsubmit="return confirm('Confirm purchase? This adds {{ $item->quantity }} to stock and deducts ৳{{ number_format($item->subtotal, 2) }} from your balance.');">
+                                            @csrf
+                                            <button class="rounded-lg border border-[#287857] bg-[#287857]/5 px-3 py-1.5
+                                                           text-[11px] font-semibold text-[#287857] transition
+                                                           hover:bg-[#287857] hover:text-white">
+                                                Mark Purchased
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-xs text-slate-300">—</span>
+                                    @endif
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -250,11 +276,17 @@
                     <option value="hold">Hold</option>
                     <option value="rejected">Reject</option>
                 </select>
-                <input name="approved_amount" type="number" step="0.01"
-                       value="{{ $requisition->total_amount }}"
-                       placeholder="Approved amount"
-                       class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                              text-slate-700 focus:border-[#287857] focus:outline-none">
+                <div>
+                    <input name="approved_amount" type="number" step="0.01" min="0.01"
+                           value="{{ old('approved_amount', $requisition->total_amount) }}"
+                           placeholder="Approved amount"
+                           class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
+                                  text-slate-700 focus:border-[#287857] focus:outline-none">
+                    <p class="mt-1 text-[11px] text-slate-400">
+                        Enter any amount (requested ৳ {{ number_format($requisition->total_amount, 2) }}).
+                        {{ $requisition->employee->name }}'s balance is credited when you record a payment.
+                    </p>
+                </div>
                 <textarea name="admin_note" rows="3" placeholder="Note or reject reason"
                           class="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm
                                  text-slate-700 focus:border-[#287857] focus:outline-none"></textarea>

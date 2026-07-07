@@ -88,6 +88,9 @@ class RequisitionService
                 'reviewed_by' => $admin->id,
             ]);
 
+            // Note: the employee's balance is credited when a payment is actually
+            // recorded (see PaymentService), not on approval — so it reflects the
+            // real money paid out.
             $this->auditService->record('requisition.reviewed', $locked, $old, $locked->fresh()->only(['status', 'approved_amount', 'admin_note']), $note);
             $locked->employee->notify(new SystemNotification('Requisition '.$status, route('requisitions.show', $locked), 'requisition'));
 

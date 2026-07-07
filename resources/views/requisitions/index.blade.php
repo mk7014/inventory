@@ -61,11 +61,28 @@
                         <th class="px-5 py-3">Requested</th>
                         <th class="px-5 py-3">Approved</th>
                         <th class="px-5 py-3">Status</th>
+                        <th class="px-5 py-3">Payment</th>
+                        <th class="px-5 py-3">Purchase</th>
                         <th class="px-5 py-3">Date</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse($requisitions as $row)
+                        @php
+                            // Payment status (only meaningful once approved)
+                            $paid = (float) ($row->paid_total ?? 0);
+                            $approved = (float) $row->approved_amount;
+                            $payStatus = $row->status !== 'approved'
+                                ? null
+                                : ($paid <= 0 ? 'unpaid' : ($paid < $approved ? 'partial' : 'paid'));
+
+                            // Purchase status (only for product items)
+                            $prodCount = (int) $row->product_items_count;
+                            $purCount  = (int) $row->purchased_items_count;
+                            $purStatus = $prodCount === 0
+                                ? null
+                                : ($purCount === 0 ? 'not purchased' : ($purCount < $prodCount ? 'partial' : 'purchased'));
+                        @endphp
                         <tr class="tbl-row">
                             <td class="px-5 py-3">
                                 <a class="font-semibold text-[#287857] hover:underline underline-offset-2"
@@ -83,13 +100,37 @@
                             <td class="px-5 py-3">
                                 @include('partials.status', ['status' => $row->status])
                             </td>
+                            <td class="px-5 py-3">
+                                @if($payStatus)
+                                    @include('partials.status', ['status' => $payStatus])
+                                    @if($payStatus === 'partial')
+                                        <span class="mt-1 block text-[10px] text-slate-400">
+                                            ৳ {{ number_format($paid, 0) }} / {{ number_format($approved, 0) }}
+                                        </span>
+                                    @endif
+                                @else
+                                    <span class="text-xs text-slate-300">—</span>
+                                @endif
+                            </td>
+                            <td class="px-5 py-3">
+                                @if($purStatus)
+                                    @include('partials.status', ['status' => $purStatus])
+                                    @if($purStatus === 'partial')
+                                        <span class="mt-1 block text-[10px] text-slate-400">
+                                            {{ $purCount }} / {{ $prodCount }} items
+                                        </span>
+                                    @endif
+                                @else
+                                    <span class="text-xs text-slate-300">—</span>
+                                @endif
+                            </td>
                             <td class="px-5 py-3 text-xs text-slate-400">
                                 {{ $row->requested_at->format('d M Y') }}
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-5 py-14 text-center">
+                            <td colspan="8" class="px-5 py-14 text-center">
                                 <div class="flex flex-col items-center gap-2">
                                     <svg class="h-8 w-8 text-slate-200" fill="none" viewBox="0 0 24 24"
                                          stroke="currentColor" stroke-width="1.5">

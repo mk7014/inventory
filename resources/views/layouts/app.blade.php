@@ -62,7 +62,7 @@
                     $dashActive  = request()->routeIs('dashboard');
                     $opsActive   = request()->routeIs('requisitions.*','payments.*','sales.*','returns.*','expenses.*');
                     $invActive   = request()->routeIs('products.*','reports.*');
-                    $adminActive = request()->routeIs('accounts.*','users.*');
+                    $adminActive = request()->routeIs('accounts.*','users.*','balances.*');
                 @endphp
 
                 {{-- Dashboard --}}
@@ -79,6 +79,19 @@
                         </svg>
                     </span>
                     <span class="nav-label">Dashboard</span>
+                </a>
+
+                {{-- My Balance --}}
+                <a href="{{ route('balance.mine') }}"
+                   class="nav-single {{ request()->routeIs('balance.mine') ? 'nav-active' : '' }}">
+                    <span class="nav-icon-wrap">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                             stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                    </span>
+                    <span class="nav-label">My Balance</span>
                 </a>
 
                 {{-- ── Operations (accordion) ────────────────────── --}}
@@ -228,6 +241,15 @@
                                           d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
                                 </svg>
                                 Users
+                            </a>
+                            <a href="{{ route('balances.index') }}"
+                               class="nav-child {{ request()->routeIs('balances.*') ? 'nav-child-active' : '' }}">
+                                <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+                                     stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
+                                Employee Balances
                             </a>
                         </div>
                     </div>
