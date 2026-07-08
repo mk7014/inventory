@@ -49,7 +49,7 @@ class ReturnService
 
             $this->auditService->record('return.created', $return, null, $return->toArray());
 
-            $admins = User::query()->where('role', 'admin')->where('status', 'active')->get();
+            $admins = User::query()->whereRelation('role', 'slug', 'admin')->where('status', 'active')->get();
             Notification::send($admins, new SystemNotification('Product return recorded', route('returns.index'), 'return'));
 
             return $return;

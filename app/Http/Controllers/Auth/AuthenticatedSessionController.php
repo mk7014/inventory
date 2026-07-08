@@ -31,6 +31,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Employees are limited to their own balance & costing; send them there directly.
+        if (! $request->user()->isAdmin()) {
+            return redirect()->route('balance.mine');
+        }
+
         return redirect()->intended(route('dashboard'));
     }
 

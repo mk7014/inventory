@@ -51,13 +51,14 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                                Role
+                                Role <span class="text-red-400">*</span>
                             </label>
-                            <select name="role"
+                            <select name="role_id" required
                                     class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
                                            text-slate-700 focus:border-violet-400 focus:outline-none">
-                                <option value="employee">Employee</option>
-                                <option value="admin">Admin</option>
+                                @foreach($roles as $role)
+                                    <option value="{{ $role->id }}" @selected($role->slug === 'employee')>{{ $role->name }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div>
@@ -126,11 +127,12 @@
                                                       text-slate-600 focus:border-violet-400 focus:outline-none">
                                     </td>
                                     <td class="px-4 py-2.5">
-                                        <select name="role"
+                                        <select name="role_id"
                                                 class="rounded-lg border border-slate-200 px-2.5 py-2 text-sm
                                                        text-slate-700 focus:border-violet-400 focus:outline-none">
-                                            <option value="employee" @selected($user->role === 'employee')>Employee</option>
-                                            <option value="admin"    @selected($user->role === 'admin')>Admin</option>
+                                            @foreach($roles as $role)
+                                                <option value="{{ $role->id }}" @selected($user->role_id === $role->id)>{{ $role->name }}</option>
+                                            @endforeach
                                         </select>
                                     </td>
                                     <td class="px-4 py-2.5">

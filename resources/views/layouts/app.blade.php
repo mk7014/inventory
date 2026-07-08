@@ -60,11 +60,12 @@
 
                 @php
                     $dashActive  = request()->routeIs('dashboard');
-                    $opsActive   = request()->routeIs('requisitions.*','payments.*','sales.*','returns.*','expenses.*');
+                    $opsActive   = request()->routeIs('requisitions.*','payments.*','sales.*','returns.*');
                     $invActive   = request()->routeIs('products.*','reports.*');
-                    $adminActive = request()->routeIs('accounts.*','users.*','balances.*');
+                    $adminActive = request()->routeIs('accounts.*','users.*','roles.*','balances.*');
                 @endphp
 
+                @can('dashboard.view')
                 {{-- Dashboard --}}
                 <a href="{{ route('dashboard') }}"
                    class="nav-single {{ $dashActive ? 'nav-active' : '' }}">
@@ -80,10 +81,11 @@
                     </span>
                     <span class="nav-label">Dashboard</span>
                 </a>
+                @endcan
 
                 {{-- My Balance --}}
                 <a href="{{ route('balance.mine') }}"
-                   class="nav-single {{ request()->routeIs('balance.mine') ? 'nav-active' : '' }}">
+                   class="nav-single {{ request()->routeIs('balance.mine','balance.received','balance.statement') ? 'nav-active' : '' }}">
                     <span class="nav-icon-wrap">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                              stroke="currentColor" stroke-width="2">
@@ -94,6 +96,32 @@
                     <span class="nav-label">My Balance</span>
                 </a>
 
+                {{-- My Costing (spending breakdown) --}}
+                <a href="{{ route('balance.spent') }}"
+                   class="nav-single {{ request()->routeIs('balance.spent') ? 'nav-active' : '' }}">
+                    <span class="nav-icon-wrap">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                             stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M20 12H4m0 0l4-4m-4 4l4 4"/>
+                        </svg>
+                    </span>
+                    <span class="nav-label">My Costing</span>
+                </a>
+
+                {{-- Expenses (personal — deducts balance) --}}
+                <a href="{{ route('expenses.index') }}"
+                   class="nav-single {{ request()->routeIs('expenses.*') ? 'nav-active' : '' }}">
+                    <span class="nav-icon-wrap">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                    </span>
+                    <span class="nav-label">Expenses</span>
+                </a>
+
+                @canany(['requisitions.view','payments.view','sales.view','returns.view'])
                 {{-- ── Operations (accordion) ────────────────────── --}}
                 <div class="nav-group {{ $opsActive ? 'open' : '' }}">
                     <button class="nav-parent-btn">
@@ -114,6 +142,7 @@
                     </button>
                     <div class="nav-submenu">
                         <div class="pl-3 pt-1 pb-1 space-y-0.5">
+                            @can('requisitions.view')
                             <a href="{{ route('requisitions.index') }}"
                                class="nav-child {{ request()->routeIs('requisitions.*') ? 'nav-child-active' : '' }}">
                                 <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
@@ -123,6 +152,8 @@
                                 </svg>
                                 Requisitions
                             </a>
+                            @endcan
+                            @can('payments.view')
                             <a href="{{ route('payments.index') }}"
                                class="nav-child {{ request()->routeIs('payments.*') ? 'nav-child-active' : '' }}">
                                 <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
@@ -132,6 +163,8 @@
                                 </svg>
                                 Payments
                             </a>
+                            @endcan
+                            @can('sales.view')
                             <a href="{{ route('sales.index') }}"
                                class="nav-child {{ request()->routeIs('sales.*') ? 'nav-child-active' : '' }}">
                                 <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
@@ -141,6 +174,8 @@
                                 </svg>
                                 Sales
                             </a>
+                            @endcan
+                            @can('returns.view')
                             <a href="{{ route('returns.index') }}"
                                class="nav-child {{ request()->routeIs('returns.*') ? 'nav-child-active' : '' }}">
                                 <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
@@ -150,19 +185,13 @@
                                 </svg>
                                 Returns
                             </a>
-                            <a href="{{ route('expenses.index') }}"
-                               class="nav-child {{ request()->routeIs('expenses.*') ? 'nav-child-active' : '' }}">
-                                <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
-                                     stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
-                                </svg>
-                                Expenses
-                            </a>
+                            @endcan
                         </div>
                     </div>
                 </div>
+                @endcanany
 
+                @canany(['products.view','reports.view'])
                 {{-- ── Inventory (accordion) ──────────────────────── --}}
                 <div class="nav-group {{ $invActive ? 'open' : '' }}">
                     <button class="nav-parent-btn">
@@ -181,6 +210,7 @@
                     </button>
                     <div class="nav-submenu">
                         <div class="pl-3 pt-1 pb-1 space-y-0.5">
+                            @can('products.view')
                             <a href="{{ route('products.index') }}"
                                class="nav-child {{ request()->routeIs('products.*') ? 'nav-child-active' : '' }}">
                                 <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
@@ -190,6 +220,8 @@
                                 </svg>
                                 Products & Stock
                             </a>
+                            @endcan
+                            @can('reports.view')
                             <a href="{{ route('reports.index') }}"
                                class="nav-child {{ request()->routeIs('reports.*') ? 'nav-child-active' : '' }}">
                                 <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
@@ -199,12 +231,14 @@
                                 </svg>
                                 Reports
                             </a>
+                            @endcan
                         </div>
                     </div>
                 </div>
+                @endcanany
 
-                {{-- ── Admin Panel (admin only, accordion) ─────────── --}}
-                @if(auth()->user()->isAdmin())
+                {{-- ── Admin Panel (accordion) ─────────────────────── --}}
+                @canany(['accounts.view','users.view','roles.view','balances.view'])
                 <div class="nav-group {{ $adminActive ? 'open' : '' }}">
                     <button class="nav-parent-btn">
                         <span class="nav-icon-wrap">
@@ -224,6 +258,7 @@
                     </button>
                     <div class="nav-submenu">
                         <div class="pl-3 pt-1 pb-1 space-y-0.5">
+                            @can('accounts.view')
                             <a href="{{ route('accounts.index') }}"
                                class="nav-child {{ request()->routeIs('accounts.*') ? 'nav-child-active' : '' }}">
                                 <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
@@ -233,6 +268,8 @@
                                 </svg>
                                 Daraz Accounts
                             </a>
+                            @endcan
+                            @can('users.view')
                             <a href="{{ route('users.index') }}"
                                class="nav-child {{ request()->routeIs('users.*') ? 'nav-child-active' : '' }}">
                                 <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
@@ -242,6 +279,19 @@
                                 </svg>
                                 Users
                             </a>
+                            @endcan
+                            @can('roles.view')
+                            <a href="{{ route('roles.index') }}"
+                               class="nav-child {{ request()->routeIs('roles.*') ? 'nav-child-active' : '' }}">
+                                <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+                                     stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                </svg>
+                                Roles &amp; Permissions
+                            </a>
+                            @endcan
+                            @can('balances.view')
                             <a href="{{ route('balances.index') }}"
                                class="nav-child {{ request()->routeIs('balances.*') ? 'nav-child-active' : '' }}">
                                 <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
@@ -251,30 +301,41 @@
                                 </svg>
                                 Employee Balances
                             </a>
+                            @endcan
                         </div>
                     </div>
                 </div>
-                @endif
+                @endcanany
 
             </nav>
 
             {{-- User profile --}}
+            @php $me = auth()->user(); @endphp
             <div class="px-4 py-4" style="border-top: 1px solid rgba(255,255,255,0.07);">
                 <div class="flex items-center gap-3">
-                    <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full
-                                text-xs font-bold text-white ring-2"
-                         style="background: linear-gradient(135deg,#34d399,#059669);
-                                ring-color: rgba(52,211,153,0.25);">
-                        {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <p class="truncate text-[12px] font-semibold text-white">
-                            {{ auth()->user()->name }}
-                        </p>
-                        <p class="text-[10px] font-medium" style="color:rgba(52,211,153,0.55);">
-                            {{ ucfirst(auth()->user()->role) }}
-                        </p>
-                    </div>
+                    <a href="{{ route('profile.edit') }}" title="My Profile"
+                       class="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1.5 transition-all duration-200
+                              {{ request()->routeIs('profile.*') ? 'bg-white/10' : '' }}"
+                       onmouseover="this.style.background='rgba(255,255,255,0.07)'"
+                       onmouseout="this.style.background='{{ request()->routeIs('profile.*') ? 'rgba(255,255,255,0.1)' : '' }}'">
+                        <div class="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full ring-2"
+                             style="ring-color: rgba(52,211,153,0.25);">
+                            @if($me->avatarUrl())
+                                <img src="{{ $me->avatarUrl() }}" alt="" class="h-full w-full object-cover">
+                            @else
+                                <div class="flex h-full w-full items-center justify-center text-xs font-bold text-white"
+                                     style="background: linear-gradient(135deg,#34d399,#059669);">
+                                    {{ $me->initials() }}
+                                </div>
+                            @endif
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-[12px] font-semibold text-white">{{ $me->name }}</p>
+                            <p class="text-[10px] font-medium" style="color:rgba(52,211,153,0.55);">
+                                {{ $me->role?->name ?? 'No role' }}
+                            </p>
+                        </div>
+                    </a>
                     <form method="post" action="{{ route('logout') }}">
                         @csrf
                         <button title="Sign out"

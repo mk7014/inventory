@@ -203,3 +203,31 @@
 .page-fade {
     animation: pageFade 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
+
+/* ── Interaction affordances ─────────────────────────────────────── */
+/* Tailwind v4's Preflight resets buttons to cursor:default. Restore the
+   pointer on every interactive control so the UI feels responsive. */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+summary,
+select:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+label:has(> input[type="checkbox"]:not(:disabled)),
+label:has(> input[type="radio"]:not(:disabled)) {
+    cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+label:has(> input:disabled) {
+    cursor: not-allowed;
+}
+
+/* Slightly larger, brand-tinted checkboxes for the permission matrix. */
+.perm-chip input[type="checkbox"],
+[data-section-all],
+[data-module-all] {
+    accent-color: #059669;
+}

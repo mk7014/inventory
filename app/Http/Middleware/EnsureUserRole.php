@@ -10,7 +10,7 @@ class EnsureUserRole
 {
     public function handle(Request $request, Closure $next, string $role): Response
     {
-        abort_unless($request->user()?->role === $role, 403);
+        abort_unless($request->user()?->role?->slug === $role, 403);
 
         return $next($request);
     }

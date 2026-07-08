@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UserStoreRequest;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
@@ -12,7 +13,10 @@ class UserController extends Controller
 {
     public function index(): View
     {
-        return view('users.index', ['users' => User::query()->latest()->paginate(20)]);
+        return view('users.index', [
+            'users' => User::query()->with('role')->latest()->paginate(20),
+            'roles' => Role::query()->where('status', 'active')->orderByDesc('is_system')->orderBy('name')->get(),
+        ]);
     }
 
     public function store(UserStoreRequest $request): RedirectResponse

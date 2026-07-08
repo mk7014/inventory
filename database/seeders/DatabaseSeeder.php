@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductReturn;
 use App\Models\Requisition;
 use App\Models\Sale;
+use App\Models\Role;
 use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -16,12 +17,18 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // Roles & permissions must exist before we can assign users to them.
+        $this->call(RolePermissionSeeder::class);
+
+        $adminRole = Role::query()->where('slug', 'admin')->firstOrFail();
+        $employeeRole = Role::query()->where('slug', 'employee')->firstOrFail();
+
         $admin = User::query()->updateOrCreate([
             'email' => 'admin@example.com',
         ], [
             'name' => 'Owner Admin',
             'password' => 'password',
-            'role' => 'admin',
+            'role_id' => $adminRole->id,
             'status' => 'active',
         ]);
 
@@ -30,7 +37,7 @@ class DatabaseSeeder extends Seeder
         ], [
             'name' => 'Store Manager',
             'password' => 'password',
-            'role' => 'employee',
+            'role_id' => $employeeRole->id,
             'status' => 'active',
         ]);
 

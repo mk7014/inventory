@@ -59,7 +59,7 @@ class RequisitionService
             $requisition->update(['total_amount' => $total]);
             $this->auditService->record('requisition.created', $requisition, null, $requisition->fresh()->toArray());
 
-            $admins = User::query()->where('role', 'admin')->where('status', 'active')->get();
+            $admins = User::query()->whereRelation('role', 'slug', 'admin')->where('status', 'active')->get();
             Notification::send($admins, new SystemNotification('New requisition submitted', route('requisitions.show', $requisition), 'requisition'));
 
             return $requisition->load('items.product', 'items.account');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BalanceTransaction;
 use App\Models\Payment;
+use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,12 +20,13 @@ class BalanceController extends Controller
     public function index(): View
     {
         $users = User::query()
-            ->where('role', 'employee')
+            ->whereRelation('role', 'slug', '!=', 'admin')
+            ->with('role')
             ->orderByDesc('balance')
             ->orderBy('name')
             ->paginate(20);
 
-        $totalBalance = (float) User::query()->where('role', 'employee')->sum('balance');
+        $totalBalance = (float) User::query()->whereRelation('role', 'slug', '!=', 'admin')->sum('balance');
 
         return view('balances.index', compact('users', 'totalBalance'));
     }
@@ -74,15 +76,52 @@ class BalanceController extends Controller
     }
 
     /**
-     * Breakdown page: every debit (money spent), with the purchased product,
-     * quantity, unit cost, requisition and Daraz account.
+     * Breakdown page: money spent grouped per requisition. Each row shows the
+     * requisition, how many purchases it covers and the total spent — click
+     * through to spentRequisition() for the product-by-product breakdown.
      */
     public function spent(Request $request): View
     {
         $user = $request->user();
 
+        $requisitions = $this->ledger($user)
+            ->where('balance_transactions.amount', '<', 0)
+            ->where('balance_transactions.reference_type', RequisitionItem::class)
+            ->join('requisition_items', 'requisition_items.id', '=', 'balance_transactions.reference_id')
+            ->join('requisitions', 'requisitions.id', '=', 'requisition_items.requisition_id')
+            ->groupBy('requisitions.id', 'requisitions.requisition_number', 'requisitions.status')
+            ->orderByRaw('MAX(balance_transactions.created_at) DESC')
+            ->selectRaw(
+                'requisitions.id as requisition_id, '.
+                'requisitions.requisition_number as requisition_number, '.
+                'requisitions.status as requisition_status, '.
+                'SUM(-balance_transactions.amount) as total_spent, '.
+                'COUNT(*) as purchase_count, '.
+                'MAX(balance_transactions.created_at) as last_purchase_at'
+            )
+            ->paginate(20);
+
+        return view('balances.spent', [
+            'user' => $user,
+            'requisitions' => $requisitions,
+            'totalSpent' => $this->totalSpent($user),
+        ]);
+    }
+
+    /**
+     * Drill-down: every purchase (debit) the employee made for a single
+     * requisition, product by product, with quantity, unit cost and account.
+     */
+    public function spentRequisition(Request $request, Requisition $requisition): View
+    {
+        $user = $request->user();
+
+        $itemIds = $requisition->items()->pluck('id');
+
         $spending = $this->ledger($user)
             ->where('amount', '<', 0)
+            ->where('reference_type', RequisitionItem::class)
+            ->whereIn('reference_id', $itemIds)
             ->with([
                 'creator',
                 'reference' => fn (MorphTo $morphTo) => $morphTo->morphWith([
@@ -92,10 +131,19 @@ class BalanceController extends Controller
             ->latest()
             ->paginate(20);
 
-        return view('balances.spent', [
+        abort_if($spending->total() === 0, 404);
+
+        return view('balances.spent-requisition', [
             'user' => $user,
+            'requisition' => $requisition,
             'spending' => $spending,
-            'totalSpent' => $this->totalSpent($user),
+            'requisitionTotal' => (float) abs(
+                $this->ledger($user)
+                    ->where('amount', '<', 0)
+                    ->where('reference_type', RequisitionItem::class)
+                    ->whereIn('reference_id', $itemIds)
+                    ->sum('amount')
+            ),
         ]);
     }
 

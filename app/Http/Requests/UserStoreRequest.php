@@ -9,7 +9,9 @@ class UserStoreRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isAdmin() === true;
+        $user = $this->route('user');
+
+        return $this->user()?->can($user ? 'users.update' : 'users.create') === true;
     }
 
     public function rules(): array
@@ -21,7 +23,7 @@ class UserStoreRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($userId)],
             'password' => $passwordRule,
-            'role' => ['required', Rule::in(['admin', 'employee'])],
+            'role_id' => ['required', Rule::exists('roles', 'id')],
             'status' => ['required', Rule::in(['active', 'inactive'])],
         ];
     }
