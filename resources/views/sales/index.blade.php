@@ -103,7 +103,9 @@
 
     {{-- ── Lifecycle breakdown strip ──────────────────────────────── --}}
     @php
-        $canUpdate = auth()->user()->can('sales.update');
+        // Status update is open to everyone who can reach this page (which already
+        // requires sales.view), so the Action column always shows.
+        $canUpdate = true;
         $lifecycle = [
             \App\Enums\SaleStatus::Pending, \App\Enums\SaleStatus::Shipped, \App\Enums\SaleStatus::SendToCourier,
             \App\Enums\SaleStatus::Delivered, \App\Enums\SaleStatus::Returned, \App\Enums\SaleStatus::Cancelled,

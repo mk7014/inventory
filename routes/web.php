@@ -109,7 +109,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     });
     Route::middleware('permission:sales.create')
         ->post('/sales', [SaleController::class, 'store'])->name('sales.store');
-    Route::middleware('permission:sales.update')
+    // Status update is open to anyone who can view sales (not gated on sales.update).
+    Route::middleware('permission:sales.view')
         ->patch('/sales/{sale}/status', [SaleController::class, 'updateStatus'])->name('sales.status.update');
 
     // ── Returns ─────────────────────────────────────────────────────
