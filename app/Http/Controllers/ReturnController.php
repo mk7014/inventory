@@ -13,9 +13,19 @@ class ReturnController extends Controller
 {
     public function index(): View
     {
+        $base = ProductReturn::query();
+
+        $stats = [
+            'total_returns' => (clone $base)->count(),
+            'total_units'   => (clone $base)->sum('quantity'),
+            'good'          => (clone $base)->where('condition', 'good')->count(),
+            'damaged'       => (clone $base)->where('condition', 'damaged')->count(),
+        ];
+
         return view('returns.index', [
             'returns' => ProductReturn::query()->with('sale')->latest('return_date')->paginate(15),
             'sales' => Sale::query()->where('status', 'completed')->latest('sold_date')->limit(100)->get(),
+            'stats' => $stats,
         ]);
     }
 

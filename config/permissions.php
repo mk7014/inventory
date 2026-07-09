@@ -44,6 +44,12 @@ return [
             'actions' => ['view', 'create', 'approve', 'delete'],
             'menu'    => ['route' => 'requisitions.index', 'label' => 'Requisitions', 'parent' => 'Operations'],
         ],
+        'direct_purchases' => [
+            'label'   => 'Direct Purchases',
+            'group'   => 'Operations',
+            'actions' => ['view', 'create', 'approve', 'delete'],
+            'menu'    => ['route' => 'direct-purchases.index', 'label' => 'Direct Purchase', 'parent' => 'Operations'],
+        ],
         'payments' => [
             'label'   => 'Payments',
             'group'   => 'Operations',
@@ -73,6 +79,18 @@ return [
             'group'   => 'Inventory',
             'actions' => ['view', 'export'],
             'menu'    => ['route' => 'reports.index', 'label' => 'Reports', 'parent' => 'Inventory'],
+        ],
+        'suppliers' => [
+            'label'   => 'Suppliers',
+            'group'   => 'Administration',
+            'actions' => ['view', 'create', 'update'],
+            'menu'    => ['route' => 'suppliers.index', 'label' => 'Suppliers', 'parent' => 'Admin Panel'],
+        ],
+        'warehouses' => [
+            'label'   => 'Warehouses',
+            'group'   => 'Administration',
+            'actions' => ['view', 'create', 'update'],
+            'menu'    => ['route' => 'warehouses.index', 'label' => 'Warehouses', 'parent' => 'Admin Panel'],
         ],
         'accounts' => [
             'label'   => 'Daraz Accounts',

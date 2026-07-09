@@ -142,14 +142,14 @@
                     <input type="hidden" name="items[${idx}][item_type]" value="product">
                     <td class="px-3 py-2.5">
                         <select name="items[${idx}][daraz_account_id]"
-                                class="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm focus:border-[#287857] focus:outline-none" required>
+                                class="ppp-field" required>
                             <option value="">Select account</option>
                             ${buildAccountOptions()}
                         </select>
                     </td>
                     <td class="px-3 py-2.5">
                         <select name="items[${idx}][product_id]"
-                                class="product-select w-full rounded-lg border border-slate-200 px-2 py-2 text-sm focus:border-[#287857] focus:outline-none" required>
+                                class="ppp-field" required>
                             <option value="">Select product</option>
                             ${buildProductOptions()}
                         </select>
@@ -157,7 +157,7 @@
                     </td>
                     <td class="px-3 py-2.5">
                         <input name="items[${idx}][order_id_daraz]"
-                               class="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm focus:border-[#287857] focus:outline-none"
+                               class="ppp-field"
                                placeholder="Optional">
                     </td>
                     <td class="px-3 py-2.5">
@@ -209,14 +209,12 @@
                     <input type="hidden" name="items[${idx}][item_type]" value="cost">
                     <td class="px-3 py-2.5">
                         <input name="items[${idx}][description]" type="text"
-                               class="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm
-                                      focus:border-violet-400 focus:outline-none"
+                               class="ppp-field"
                                placeholder="e.g. Transportation fee" required>
                     </td>
                     <td class="px-3 py-2.5">
                         <input name="items[${idx}][amount]" type="number" min="0.01" step="0.01"
-                               class="cost-amount w-full rounded-lg border border-slate-200 px-2 py-2 text-sm
-                                      focus:border-violet-400 focus:outline-none" required>
+                               class="ppp-field" required>
                     </td>
                     <td class="px-3 py-2.5">
                         <button type="button"

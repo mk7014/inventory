@@ -34,8 +34,7 @@
                             Description
                         </label>
                         <textarea name="description" rows="3" placeholder="What is this role for?"
-                                  class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700
-                                         placeholder-slate-300 focus:border-emerald-400 focus:outline-none">{{ old('description', $role->description) }}</textarea>
+                                  class="ppp-field">{{ old('description', $role->description) }}</textarea>
                         @error('description')<p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>@enderror
                     </div>
                     <div>
@@ -43,8 +42,7 @@
                             Status <span class="text-red-400">*</span>
                         </label>
                         <select name="status" @disabled($isAdmin)
-                                class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700
-                                       focus:border-emerald-400 focus:outline-none disabled:bg-slate-50">
+                                class="ppp-field">
                             <option value="active"   @selected(old('status', $role->status) === 'active')>Active</option>
                             <option value="inactive" @selected(old('status', $role->status) === 'inactive')>Inactive</option>
                         </select>

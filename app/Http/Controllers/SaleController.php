@@ -15,10 +15,21 @@ class SaleController extends Controller
 {
     public function index(): View
     {
+        $base = Sale::query();
+
+        $stats = [
+            'total_sales'   => (clone $base)->count(),
+            'total_revenue' => (clone $base)->selectRaw('COALESCE(SUM(selling_price * quantity), 0) AS agg')->value('agg'),
+            'total_units'   => (clone $base)->sum('quantity'),
+            'from_stock'    => (clone $base)->where('source', 'stock')->count(),
+            'new_purchase'  => (clone $base)->where('source', 'new_purchase')->count(),
+        ];
+
         return view('sales.index', [
             'sales' => Sale::query()->with('account', 'product')->latest('sold_date')->paginate(15),
             'accounts' => DarazAccount::active()->orderBy('account_name')->get(),
             'products' => Product::query()->orderBy('name')->get(),
+            'stats' => $stats,
         ]);
     }
 

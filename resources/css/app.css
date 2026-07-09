@@ -204,6 +204,108 @@
     animation: pageFade 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
+/* ── Form controls (shared across every page) ────────────────────── */
+/* One base class for inputs, selects, textareas so every form looks
+   identical. The chevron + native-arrow reset is applied only to
+   <select> elements via the element-qualified rule below, so the same
+   `ppp-field` class can be dropped on any control without extra markup. */
+
+.ppp-field {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+    color: #334155;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.ppp-field::placeholder {
+    color: #cbd5e1;
+}
+
+.ppp-field:focus {
+    outline: none;
+    background-color: #fff;
+    border-color: #287857;
+    box-shadow: 0 0 0 3px rgba(40, 120, 87, 0.10);
+}
+
+.ppp-field:disabled {
+    background-color: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+select.ppp-field {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.875rem center;
+    background-size: 1rem 1rem;
+}
+
+textarea.ppp-field {
+    min-height: 5rem;
+    line-height: 1.5rem;
+}
+
+/* ── Buttons (shared CTAs) ────────────────────────────────────────── */
+
+.ppp-btn-primary,
+.ppp-btn-ghost,
+.ppp-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease, color 0.18s ease;
+}
+
+.ppp-btn-primary {
+    background-color: #287857;
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(16, 24, 20, 0.08);
+}
+.ppp-btn-primary:hover {
+    background-color: #1f6046;
+    box-shadow: 0 4px 14px rgba(40, 120, 87, 0.28);
+}
+.ppp-btn-primary:active {
+    transform: scale(0.985);
+}
+
+.ppp-btn-ghost {
+    background-color: #fff;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+.ppp-btn-ghost:hover {
+    background-color: #f8fafc;
+    color: #1e293b;
+}
+
+.ppp-btn-danger {
+    background-color: #fff;
+    color: #e11d48;
+    border: 1px solid #fecdd3;
+}
+.ppp-btn-danger:hover {
+    background-color: #e11d48;
+    color: #fff;
+    border-color: transparent;
+}
+
 /* ── Interaction affordances ─────────────────────────────────────── */
 /* Tailwind v4's Preflight resets buttons to cursor:default. Restore the
    pointer on every interactive control so the UI feels responsive. */

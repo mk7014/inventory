@@ -4,6 +4,9 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BalanceController;
 use App\Http\Controllers\DarazAccountController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DirectPurchaseApprovalController;
+use App\Http\Controllers\DirectPurchaseController;
+use App\Http\Controllers\DirectPurchasePaymentController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
@@ -16,7 +19,9 @@ use App\Http\Controllers\RequisitionReviewController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -81,6 +86,22 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::middleware('permission:payments.create')
         ->post('/requisitions/{requisition}/payments', [PaymentController::class, 'store'])->name('requisitions.payments.store');
 
+    // ── Direct Purchases ────────────────────────────────────────────
+    Route::middleware('permission:direct_purchases.create')->group(function () {
+        Route::get('/direct-purchases/create', [DirectPurchaseController::class, 'create'])->name('direct-purchases.create');
+        Route::post('/direct-purchases', [DirectPurchaseController::class, 'store'])->name('direct-purchases.store');
+    });
+    Route::middleware('permission:direct_purchases.approve')->group(function () {
+        Route::post('/direct-purchases/{purchase}/review', DirectPurchaseApprovalController::class)->name('direct-purchases.review');
+        Route::post('/direct-purchases/{purchase}/payments', [DirectPurchasePaymentController::class, 'store'])->name('direct-purchases.payments.store');
+    });
+    Route::middleware('permission:direct_purchases.view')->group(function () {
+        Route::get('/direct-purchases', [DirectPurchaseController::class, 'index'])->name('direct-purchases.index');
+        Route::get('/direct-purchases/due', [DirectPurchaseController::class, 'due'])->name('direct-purchases.due');
+        Route::get('/direct-purchase-payments', [DirectPurchasePaymentController::class, 'index'])->name('direct-purchase-payments.index');
+        Route::get('/direct-purchases/{purchase}', [DirectPurchaseController::class, 'show'])->name('direct-purchases.show');
+    });
+
     // ── Sales ───────────────────────────────────────────────────────
     Route::middleware('permission:sales.view')->group(function () {
         Route::get('/sales/stock-check', [SaleController::class, 'stockCheck'])->name('sales.stock-check');
@@ -112,6 +133,22 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::middleware('permission:reports.export')
         ->get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
+
+    // ── Suppliers ───────────────────────────────────────────────────
+    Route::middleware('permission:suppliers.view')
+        ->get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index');
+    Route::middleware('permission:suppliers.create')
+        ->post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
+    Route::middleware('permission:suppliers.update')
+        ->put('/suppliers/{supplier}', [SupplierController::class, 'update'])->name('suppliers.update');
+
+    // ── Warehouses ──────────────────────────────────────────────────
+    Route::middleware('permission:warehouses.view')
+        ->get('/warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
+    Route::middleware('permission:warehouses.create')
+        ->post('/warehouses', [WarehouseController::class, 'store'])->name('warehouses.store');
+    Route::middleware('permission:warehouses.update')
+        ->put('/warehouses/{warehouse}', [WarehouseController::class, 'update'])->name('warehouses.update');
 
     // ── Daraz Accounts ──────────────────────────────────────────────
     Route::middleware('permission:accounts.view')

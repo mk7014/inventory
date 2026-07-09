@@ -25,7 +25,7 @@
         @if($isAdmin)
         <div class="min-w-40">
             <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">User</label>
-            <select name="user_id" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 focus:border-emerald-400 focus:outline-none">
+            <select name="user_id" class="ppp-field">
                 <option value="">All users</option>
                 @foreach($employees as $emp)
                     <option value="{{ $emp->id }}" @selected(request('user_id') == $emp->id)>{{ $emp->name }}</option>
@@ -35,11 +35,11 @@
         @endif
         <div class="min-w-32">
             <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">From</label>
-            <input type="date" name="from" value="{{ request('from') }}" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 focus:border-emerald-400 focus:outline-none">
+            <input type="date" name="from" value="{{ request('from') }}" class="ppp-field">
         </div>
         <div class="min-w-32">
             <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">To</label>
-            <input type="date" name="to" value="{{ request('to') }}" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 focus:border-emerald-400 focus:outline-none">
+            <input type="date" name="to" value="{{ request('to') }}" class="ppp-field">
         </div>
         <button class="rounded-xl bg-slate-800 px-5 py-2.5 text-[12px] font-semibold text-white transition hover:bg-slate-900">Filter</button>
         @if(request()->hasAny(['from','to','user_id']))

@@ -60,9 +60,9 @@
 
                 @php
                     $dashActive  = request()->routeIs('dashboard');
-                    $opsActive   = request()->routeIs('requisitions.*','payments.*','sales.*','returns.*');
+                    $opsActive   = request()->routeIs('requisitions.*','direct-purchases.*','direct-purchase-payments.*','payments.*','sales.*','returns.*');
                     $invActive   = request()->routeIs('products.*','reports.*');
-                    $adminActive = request()->routeIs('accounts.*','users.*','roles.*','balances.*');
+                    $adminActive = request()->routeIs('accounts.*','suppliers.*','warehouses.*','users.*','roles.*','balances.*');
                 @endphp
 
                 @can('dashboard.view')
@@ -121,7 +121,7 @@
                     <span class="nav-label">Expenses</span>
                 </a>
 
-                @canany(['requisitions.view','payments.view','sales.view','returns.view'])
+                @canany(['requisitions.view','direct_purchases.view','payments.view','sales.view','returns.view'])
                 {{-- ── Operations (accordion) ────────────────────── --}}
                 <div class="nav-group {{ $opsActive ? 'open' : '' }}">
                     <button class="nav-parent-btn">
@@ -151,6 +151,17 @@
                                           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
                                 Requisitions
+                            </a>
+                            @endcan
+                            @can('direct_purchases.view')
+                            <a href="{{ route('direct-purchases.index') }}"
+                               class="nav-child {{ request()->routeIs('direct-purchases.*','direct-purchase-payments.*') ? 'nav-child-active' : '' }}">
+                                <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+                                     stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
+                                Direct Purchase
                             </a>
                             @endcan
                             @can('payments.view')
@@ -238,7 +249,7 @@
                 @endcanany
 
                 {{-- ── Admin Panel (accordion) ─────────────────────── --}}
-                @canany(['accounts.view','users.view','roles.view','balances.view'])
+                @canany(['accounts.view','suppliers.view','warehouses.view','users.view','roles.view','balances.view'])
                 <div class="nav-group {{ $adminActive ? 'open' : '' }}">
                     <button class="nav-parent-btn">
                         <span class="nav-icon-wrap">
@@ -267,6 +278,28 @@
                                           d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                                 </svg>
                                 Daraz Accounts
+                            </a>
+                            @endcan
+                            @can('suppliers.view')
+                            <a href="{{ route('suppliers.index') }}"
+                               class="nav-child {{ request()->routeIs('suppliers.*') ? 'nav-child-active' : '' }}">
+                                <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+                                     stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                </svg>
+                                Suppliers
+                            </a>
+                            @endcan
+                            @can('warehouses.view')
+                            <a href="{{ route('warehouses.index') }}"
+                               class="nav-child {{ request()->routeIs('warehouses.*') ? 'nav-child-active' : '' }}">
+                                <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+                                     stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M19 21V7l-7-4-7 4v14M9 21v-6h6v6"/>
+                                </svg>
+                                Warehouses
                             </a>
                             @endcan
                             @can('users.view')

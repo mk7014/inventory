@@ -59,7 +59,7 @@
                             Category <span class="text-red-400">*</span>
                         </label>
                         <select name="category" required
-                                class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none">
+                                class="ppp-field">
                             @foreach($categories as $cat)
                                 <option value="{{ $cat }}" @selected(old('category') === $cat)>{{ $cat }}</option>
                             @endforeach
@@ -71,7 +71,7 @@
                         </label>
                         <input name="amount" type="number" step="0.01" min="0.01" required value="{{ old('amount') }}"
                                placeholder="0.00"
-                               class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 placeholder-slate-300 focus:border-emerald-400 focus:outline-none">
+                               class="ppp-field">
                         @error('amount')<p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>@enderror
                     </div>
                     <div>
@@ -80,19 +80,19 @@
                         </label>
                         <input name="expense_date" type="date" required value="{{ old('expense_date', now()->toDateString()) }}"
                                max="{{ now()->toDateString() }}"
-                               class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none">
+                               class="ppp-field">
                     </div>
                     <div>
                         <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                             Description <span class="text-red-400">*</span>
                         </label>
                         <input name="description" required value="{{ old('description') }}" placeholder="e.g. CNG fare to warehouse"
-                               class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 placeholder-slate-300 focus:border-emerald-400 focus:outline-none">
+                               class="ppp-field">
                     </div>
                     <div>
                         <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Note</label>
                         <textarea name="note" rows="2" placeholder="Optional details"
-                                  class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 placeholder-slate-300 focus:border-emerald-400 focus:outline-none">{{ old('note') }}</textarea>
+                                  class="ppp-field">{{ old('note') }}</textarea>
                     </div>
                     <button class="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 flex items-center justify-center gap-2">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -126,7 +126,7 @@
                 @if($isAdmin)
                 <div class="min-w-40">
                     <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">User</label>
-                    <select name="user_id" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 focus:border-emerald-400 focus:outline-none">
+                    <select name="user_id" class="ppp-field">
                         <option value="">All users</option>
                         @foreach($employees as $emp)
                             <option value="{{ $emp->id }}" @selected(request('user_id') == $emp->id)>{{ $emp->name }}</option>
@@ -136,7 +136,7 @@
                 @endif
                 <div class="min-w-36">
                     <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Category</label>
-                    <select name="category" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 focus:border-emerald-400 focus:outline-none">
+                    <select name="category" class="ppp-field">
                         <option value="">All</option>
                         @foreach($categories as $cat)
                             <option value="{{ $cat }}" @selected(request('category') === $cat)>{{ $cat }}</option>
@@ -145,11 +145,11 @@
                 </div>
                 <div class="min-w-32">
                     <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">From</label>
-                    <input type="date" name="from" value="{{ request('from') }}" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 focus:border-emerald-400 focus:outline-none">
+                    <input type="date" name="from" value="{{ request('from') }}" class="ppp-field">
                 </div>
                 <div class="min-w-32">
                     <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">To</label>
-                    <input type="date" name="to" value="{{ request('to') }}" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 focus:border-emerald-400 focus:outline-none">
+                    <input type="date" name="to" value="{{ request('to') }}" class="ppp-field">
                 </div>
                 <button class="rounded-xl bg-slate-800 px-5 py-2.5 text-[12px] font-semibold text-white transition hover:bg-slate-900">Filter</button>
                 @if(request()->hasAny(['from','to','category','user_id']))

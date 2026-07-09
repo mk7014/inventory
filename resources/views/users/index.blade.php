@@ -29,24 +29,21 @@
                             Full Name <span class="text-red-400">*</span>
                         </label>
                         <input name="name" required placeholder="e.g. Rahim Uddin"
-                               class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                                      text-slate-700 placeholder-slate-300 focus:border-violet-400 focus:outline-none">
+                               class="ppp-field">
                     </div>
                     <div>
                         <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                             Email <span class="text-red-400">*</span>
                         </label>
                         <input name="email" type="email" required placeholder="user@example.com"
-                               class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                                      text-slate-700 placeholder-slate-300 focus:border-violet-400 focus:outline-none">
+                               class="ppp-field">
                     </div>
                     <div>
                         <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                             Password <span class="text-red-400">*</span>
                         </label>
                         <input name="password" type="password" required placeholder="Min 8 characters"
-                               class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                                      text-slate-700 placeholder-slate-300 focus:border-violet-400 focus:outline-none">
+                               class="ppp-field">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -54,8 +51,7 @@
                                 Role <span class="text-red-400">*</span>
                             </label>
                             <select name="role_id" required
-                                    class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                                           text-slate-700 focus:border-violet-400 focus:outline-none">
+                                    class="ppp-field">
                                 @foreach($roles as $role)
                                     <option value="{{ $role->id }}" @selected($role->slug === 'employee')>{{ $role->name }}</option>
                                 @endforeach
@@ -66,8 +62,7 @@
                                 Status
                             </label>
                             <select name="status"
-                                    class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                                           text-slate-700 focus:border-violet-400 focus:outline-none">
+                                    class="ppp-field">
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
                             </select>
@@ -117,19 +112,16 @@
                                                 {{ strtoupper(substr($user->name, 0, 2)) }}
                                             </div>
                                             <input name="name" value="{{ $user->name }}"
-                                                   class="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-sm
-                                                          text-slate-700 focus:border-violet-400 focus:outline-none">
+                                                   class="ppp-field">
                                         </div>
                                     </td>
                                     <td class="px-4 py-2.5">
                                         <input name="email" type="email" value="{{ $user->email }}"
-                                               class="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-sm
-                                                      text-slate-600 focus:border-violet-400 focus:outline-none">
+                                               class="ppp-field">
                                     </td>
                                     <td class="px-4 py-2.5">
                                         <select name="role_id"
-                                                class="rounded-lg border border-slate-200 px-2.5 py-2 text-sm
-                                                       text-slate-700 focus:border-violet-400 focus:outline-none">
+                                                class="ppp-field">
                                             @foreach($roles as $role)
                                                 <option value="{{ $role->id }}" @selected($user->role_id === $role->id)>{{ $role->name }}</option>
                                             @endforeach
@@ -137,8 +129,7 @@
                                     </td>
                                     <td class="px-4 py-2.5">
                                         <select name="status"
-                                                class="rounded-lg border border-slate-200 px-2.5 py-2 text-sm
-                                                       text-slate-700 focus:border-violet-400 focus:outline-none">
+                                                class="ppp-field">
                                             <option value="active"   @selected($user->status === 'active')>Active</option>
                                             <option value="inactive" @selected($user->status === 'inactive')>Inactive</option>
                                         </select>

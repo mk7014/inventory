@@ -87,13 +87,13 @@
                     <div>
                         <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Full Name <span class="text-red-400">*</span></label>
                         <input name="name" required value="{{ old('name', $user->name) }}"
-                               class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none">
+                               class="ppp-field">
                         @error('name', 'updateProfile')<p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>@enderror
                     </div>
                     <div>
                         <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Email <span class="text-red-400">*</span></label>
                         <input name="email" type="email" required value="{{ old('email', $user->email) }}"
-                               class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none">
+                               class="ppp-field">
                         @error('email', 'updateProfile')<p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>@enderror
                     </div>
 
@@ -126,20 +126,20 @@
                     <div>
                         <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Current Password <span class="text-red-400">*</span></label>
                         <input name="current_password" type="password" required autocomplete="current-password"
-                               class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none">
+                               class="ppp-field">
                         @error('current_password', 'updatePassword')<p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>@enderror
                     </div>
                     <div class="grid gap-5 sm:grid-cols-2">
                         <div>
                             <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">New Password <span class="text-red-400">*</span></label>
                             <input name="password" type="password" required autocomplete="new-password" placeholder="Min 8 characters"
-                                   class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 placeholder-slate-300 focus:border-emerald-400 focus:outline-none">
+                                   class="ppp-field">
                             @error('password', 'updatePassword')<p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Confirm New Password <span class="text-red-400">*</span></label>
                             <input name="password_confirmation" type="password" required autocomplete="new-password"
-                                   class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none">
+                                   class="ppp-field">
                         </div>
                     </div>
                     <div class="flex justify-end pt-1">

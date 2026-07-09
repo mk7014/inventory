@@ -270,8 +270,7 @@
                 @csrf
                 <h2 class="text-[13px] font-bold text-[#17211c]">Review Requisition</h2>
                 <select name="status"
-                        class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                               text-slate-700 focus:border-[#287857] focus:outline-none" required>
+                        class="ppp-field" required>
                     <option value="approved">Approve</option>
                     <option value="hold">Hold</option>
                     <option value="rejected">Reject</option>
@@ -280,16 +279,14 @@
                     <input name="approved_amount" type="number" step="0.01" min="0.01"
                            value="{{ old('approved_amount', $requisition->total_amount) }}"
                            placeholder="Approved amount"
-                           class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                                  text-slate-700 focus:border-[#287857] focus:outline-none">
+                           class="ppp-field">
                     <p class="mt-1 text-[11px] text-slate-400">
                         Enter any amount (requested ৳ {{ number_format($requisition->total_amount, 2) }}).
                         {{ $requisition->employee->name }}'s balance is credited when you record a payment.
                     </p>
                 </div>
                 <textarea name="admin_note" rows="3" placeholder="Note or reject reason"
-                          class="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                                 text-slate-700 focus:border-[#287857] focus:outline-none"></textarea>
+                          class="ppp-field"></textarea>
                 <button class="w-full rounded-xl bg-[#287857] px-4 py-2.5 text-sm font-semibold text-white
                                transition hover:bg-[#1f6046]">
                     Submit Review
@@ -304,25 +301,20 @@
                 @csrf
                 <h2 class="text-[13px] font-bold text-[#17211c]">Record Payment</h2>
                 <input name="amount" type="number" step="0.01" placeholder="Amount" required
-                       class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                              text-slate-700 focus:border-[#287857] focus:outline-none">
+                       class="ppp-field">
                 <select name="payment_method" required
-                        class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                               text-slate-700 focus:border-[#287857] focus:outline-none">
+                        class="ppp-field">
                     @foreach(['cash','bkash','nagad','bank'] as $method)
                         <option value="{{ $method }}">{{ ucfirst($method) }}</option>
                     @endforeach
                 </select>
                 <input name="payment_date" type="datetime-local"
                        value="{{ now()->format('Y-m-d\TH:i') }}" required
-                       class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                              text-slate-700 focus:border-[#287857] focus:outline-none">
+                       class="ppp-field">
                 <input name="reference" placeholder="Reference"
-                       class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                              text-slate-700 focus:border-[#287857] focus:outline-none">
+                       class="ppp-field">
                 <textarea name="note" rows="2" placeholder="Payment note"
-                          class="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm
-                                 text-slate-700 focus:border-[#287857] focus:outline-none"></textarea>
+                          class="ppp-field"></textarea>
                 <button class="w-full rounded-xl bg-[#17211c] px-4 py-2.5 text-sm font-semibold text-white
                                transition hover:bg-black">
                     Save Payment

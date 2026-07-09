@@ -33,7 +33,20 @@ class RequisitionController extends Controller
 
         $requisitions = $query->latest()->paginate(15)->withQueryString();
 
-        return view('requisitions.index', compact('requisitions'));
+        // Summary KPIs — scoped to what the user may see, ignoring the
+        // status/date filters so the header stays a stable overview.
+        $statsBase = Requisition::query();
+        if (! $request->user()->isAdmin()) {
+            $statsBase->where('employee_id', $request->user()->id);
+        }
+        $stats = [
+            'total'           => (clone $statsBase)->count(),
+            'pending'         => (clone $statsBase)->where('status', 'pending')->count(),
+            'approved'        => (clone $statsBase)->where('status', 'approved')->count(),
+            'approved_amount' => (float) (clone $statsBase)->where('status', 'approved')->sum('approved_amount'),
+        ];
+
+        return view('requisitions.index', compact('requisitions', 'stats'));
     }
 
     public function create(): View

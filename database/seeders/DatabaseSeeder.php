@@ -10,7 +10,9 @@ use App\Models\Requisition;
 use App\Models\Sale;
 use App\Models\Role;
 use App\Models\StockMovement;
+use App\Models\Supplier;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -48,6 +50,18 @@ class DatabaseSeeder extends Seeder
             ['account_name' => 'Daraz Account 4', 'shop_name' => 'Daily Deals Hub'],
             ['account_name' => 'Daraz Account 5', 'shop_name' => 'NextTop BD'],
         ])->map(fn ($row) => DarazAccount::query()->updateOrCreate(['account_name' => $row['account_name']], $row + ['status' => 'active']));
+
+        // Suppliers & warehouses power the Direct Purchase module.
+        collect([
+            ['name' => 'Dhaka Wholesale Market', 'phone' => '01700000001', 'address' => 'Gulistan, Dhaka'],
+            ['name' => 'Chittagong Import House', 'phone' => '01700000002', 'address' => 'Agrabad, Chittagong'],
+            ['name' => 'BD Gadget Suppliers', 'phone' => '01700000003', 'address' => 'Motijheel, Dhaka'],
+        ])->each(fn ($row) => Supplier::query()->updateOrCreate(['name' => $row['name']], $row + ['status' => 'active']));
+
+        collect([
+            ['name' => 'Main Warehouse', 'location' => 'Dhaka HQ'],
+            ['name' => 'Secondary Store', 'location' => 'Uttara'],
+        ])->each(fn ($row) => Warehouse::query()->updateOrCreate(['name' => $row['name']], $row + ['status' => 'active']));
 
         $products = collect([
             ['name' => 'USB Type-C Cable', 'sku' => 'USB-C-01', 'default_purchase_price' => 120, 'current_stock' => 8],
