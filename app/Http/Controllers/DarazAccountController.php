@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\AccountStoreRequest;
 use App\Models\DarazAccount;
+use App\Services\DeletionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -26,5 +27,12 @@ class DarazAccountController extends Controller
         $account->update($request->validated());
 
         return back()->with('success', 'Account updated.');
+    }
+
+    public function destroy(DarazAccount $account, DeletionService $service): RedirectResponse
+    {
+        $service->deleteDarazAccount($account);
+
+        return back()->with('success', 'Account deleted.');
     }
 }

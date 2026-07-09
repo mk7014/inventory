@@ -101,6 +101,35 @@
         </div>
     </div>
 
+    {{-- ── Lifecycle breakdown strip ──────────────────────────────── --}}
+    @php
+        $canUpdate = auth()->user()->can('sales.update');
+        $lifecycle = [
+            \App\Enums\SaleStatus::Pending, \App\Enums\SaleStatus::Shipped, \App\Enums\SaleStatus::SendToCourier,
+            \App\Enums\SaleStatus::Delivered, \App\Enums\SaleStatus::Returned, \App\Enums\SaleStatus::Cancelled,
+        ];
+    @endphp
+    <div class="mb-6 flex flex-wrap items-center gap-2">
+        {{-- "All" chip clears the filter --}}
+        <a href="{{ route('sales.index') }}"
+           class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition
+                  {{ $activeStatus === null ? 'bg-[#287857] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+            All
+            <span class="rounded-full {{ $activeStatus === null ? 'bg-white/25' : 'bg-white/70' }} px-1.5 text-[10px] font-bold">{{ $stats['total_sales'] }}</span>
+        </a>
+        @foreach($lifecycle as $st)
+            <a href="{{ route('sales.index', ['status' => $st->value]) }}"
+               class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition {{ $st->badgeClasses() }}
+                      {{ $activeStatus === $st->value ? 'ring-2 ring-[#287857] ring-offset-1' : 'opacity-90 hover:opacity-100' }}">
+                {{ $st->label() }}
+                <span class="rounded-full bg-white/60 px-1.5 text-[10px] font-bold">{{ $statusCounts[$st->value] ?? 0 }}</span>
+            </a>
+        @endforeach
+        <span class="ml-auto inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
+            Booked units <span class="rounded-full bg-white/70 px-1.5 text-[10px] font-bold">{{ $stats['booked_units'] }}</span>
+        </span>
+    </div>
+
     {{-- ── Sales table (full width) ───────────────────────────────── --}}
     <section class="flex flex-col rounded-2xl border border-slate-200/60 bg-white shadow-sm overflow-hidden">
 
@@ -135,6 +164,10 @@
                         <th class="px-5 py-3 text-right">Revenue</th>
                         <th class="px-5 py-3">Source</th>
                         <th class="px-5 py-3">Status</th>
+                        <th class="px-5 py-3">Fulfilment</th>
+                        @if($canUpdate)
+                            <th class="px-5 py-3 text-right">Action</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody id="saleTableBody" class="divide-y divide-slate-100">
@@ -184,10 +217,62 @@
                             <td class="px-5 py-3">
                                 @include('partials.status', ['status' => $sale->status])
                             </td>
+
+                            {{-- Fulfilment: booked / delivered / returned for this sale --}}
+                            <td class="px-5 py-3">
+                                <div class="flex flex-wrap items-center gap-1">
+                                    @if($sale->booked_quantity > 0)
+                                        <span class="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700"
+                                              title="Reserved / booked stock">Booked {{ $sale->booked_quantity }}</span>
+                                    @endif
+                                    @if($sale->delivered_quantity > 0)
+                                        <span class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
+                                              title="Delivered quantity">Delivered {{ $sale->delivered_quantity }}</span>
+                                    @endif
+                                    @if($sale->returned_quantity > 0)
+                                        <span class="inline-flex items-center gap-1 rounded-md bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700"
+                                              title="Returned quantity">Returned {{ $sale->returned_quantity }}</span>
+                                    @endif
+                                    @if($sale->booked_quantity === 0 && $sale->delivered_quantity === 0 && $sale->returned_quantity === 0)
+                                        <span class="text-[11px] text-slate-300">—</span>
+                                    @endif
+                                    @if($sale->product)
+                                        <span class="block w-full text-[10px] text-slate-400"
+                                              title="On-hand and available (on-hand − booked) product stock">
+                                            Stock {{ $sale->product->current_stock }} · Avail {{ $sale->product->availableStock() }}
+                                        </span>
+                                    @endif
+                                </div>
+                            </td>
+
+                            @if($canUpdate)
+                                <td class="px-5 py-3 text-right">
+                                    @php $nextStatuses = $sale->nextStatuses(); @endphp
+                                    <div class="inline-flex items-center gap-1">
+                                        @if(count($nextStatuses) > 0)
+                                            <button type="button"
+                                                    class="saleActionBtn inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:border-[#287857] hover:text-[#287857]"
+                                                    data-sale-id="{{ $sale->id }}"
+                                                    data-sale-label="{{ $sale->product_name }}"
+                                                    data-current="{{ $sale->statusEnum()->label() }}"
+                                                    data-current-value="{{ $sale->status }}"
+                                                    data-next='@json(collect($nextStatuses)->map(fn($s) => ["value" => $s->value, "label" => $s->label()]))'>
+                                                Action
+                                                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                                                </svg>
+                                            </button>
+                                        @else
+                                            <span class="text-[10px] font-medium uppercase tracking-wide text-slate-300">Final</span>
+                                        @endif
+                                        @include('partials.delete-button', ['action' => route('sales.destroy', $sale), 'label' => $sale->product_name])
+                                    </div>
+                                </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-5 py-16 text-center">
+                            <td colspan="{{ $canUpdate ? 10 : 9 }}" class="px-5 py-16 text-center">
                                 <div class="flex flex-col items-center gap-3">
                                     <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50">
                                         <svg class="h-7 w-7 text-slate-200" fill="none" viewBox="0 0 24 24"
@@ -197,8 +282,15 @@
                                         </svg>
                                     </div>
                                     <div>
-                                        <p class="text-sm font-semibold text-slate-500">No sales yet</p>
-                                        <p class="mt-0.5 text-[12px] text-slate-400">Click “New Sale” to record your first sale.</p>
+                                        @if($activeStatus)
+                                            <p class="text-sm font-semibold text-slate-500">No {{ \App\Enums\SaleStatus::from($activeStatus)->label() }} sales</p>
+                                            <p class="mt-0.5 text-[12px] text-slate-400">
+                                                Try a different status or <a href="{{ route('sales.index') }}" class="font-semibold text-[#287857] hover:underline">view all sales</a>.
+                                            </p>
+                                        @else
+                                            <p class="text-sm font-semibold text-slate-500">No sales yet</p>
+                                            <p class="mt-0.5 text-[12px] text-slate-400">Click “New Sale” to record your first sale.</p>
+                                        @endif
                                     </div>
                                 </div>
                             </td>
@@ -206,7 +298,7 @@
                     @endforelse
                     {{-- No-results row (shown by search JS) --}}
                     <tr id="saleNoResults" class="hidden">
-                        <td colspan="8" class="px-5 py-12 text-center text-sm text-slate-400">
+                        <td colspan="{{ $canUpdate ? 10 : 9 }}" class="px-5 py-12 text-center text-sm text-slate-400">
                             No sales match your search.
                         </td>
                     </tr>
@@ -387,6 +479,79 @@
     </div>
 
 
+    {{-- ── Status update modal ────────────────────────────────────── --}}
+    @if($canUpdate)
+    <div id="statusModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+        <div id="statusModalBackdrop" class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"></div>
+        <div id="statusModalCard"
+             class="relative w-full max-w-125 scale-95 overflow-hidden rounded-2xl bg-white opacity-0 shadow-2xl
+                    ring-1 ring-slate-900/5 transition-all duration-200 ease-out">
+
+            {{-- Header --}}
+            <div class="relative border-b border-slate-100 px-5 py-4"
+                 style="background: linear-gradient(135deg,#f0fdf4 0%,#ffffff 65%);">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#287857] text-white shadow-sm shadow-emerald-700/20">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </div>
+                    <div class="min-w-0 flex-1 pt-0.5">
+                        <h2 class="text-[14px] font-bold text-[#17211c]">Update Sale Status</h2>
+                        <p id="statusModalProduct" class="truncate text-[11px] text-slate-400"></p>
+                    </div>
+                    <button type="button" id="statusModalClose"
+                            class="-mr-1 -mt-1 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Body --}}
+            <div class="px-5 py-4">
+                <div class="mb-3.5 flex items-center gap-2">
+                    <span class="text-[11px] font-medium text-slate-400">Current</span>
+                    <span id="statusModalCurrentBadge"
+                          class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold"></span>
+                </div>
+                <label for="statusSelect" class="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    Select next status
+                </label>
+                <select id="statusSelect" class="ppp-field">
+                    <option value="">Choose a status…</option>
+                </select>
+            </div>
+
+            {{-- Footer --}}
+            <div class="flex gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3.5">
+                <button type="button" id="statusModalCancel"
+                        class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold
+                               text-slate-600 transition hover:bg-slate-50">
+                    Cancel
+                </button>
+                <button type="button" id="statusSubmitBtn" disabled
+                        class="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#287857] px-4 py-2.5
+                               text-[13px] font-semibold text-white shadow-sm transition-all duration-200
+                               hover:bg-[#1f6046] hover:shadow-md active:scale-[0.99]
+                               disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Update Status
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <form id="statusForm" method="post" action="" class="hidden">
+        @csrf
+        @method('PATCH')
+        <input type="hidden" name="status" id="statusFormValue">
+    </form>
+    @endif
+
     @push('scripts')
     <script>
         // ── Drawer open/close ──────────────────────────────────────
@@ -440,7 +605,9 @@
                 return;
             }
             $.get('{{ route('sales.stock-check') }}', { product_id: this.value }, function (data) {
-                $('#stockText').text('Available stock: ' + data.stock + ' units');
+                let msg = 'Available: ' + data.available + ' units (on-hand ' + data.stock;
+                msg += data.booked > 0 ? ', booked ' + data.booked + ')' : ')';
+                $('#stockText').text(msg);
                 $('#stockResult').removeClass('hidden').addClass('flex');
             });
         });
@@ -470,6 +637,94 @@
             });
             $('#saleNoResults').toggleClass('hidden', visible !== 0 || q === '');
         });
+
+        @if($canUpdate)
+        // ── Status update modal ────────────────────────────────────
+        const statusRouteTemplate = '{{ route('sales.status.update', ['sale' => 'SALE_ID']) }}';
+        const statusModal   = document.getElementById('statusModal');
+        const statusCard    = document.getElementById('statusModalCard');
+        const statusForm    = document.getElementById('statusForm');
+        const statusSubmit  = document.getElementById('statusSubmitBtn');
+        const statusSelect  = document.getElementById('statusSelect');
+
+        // Badge palette per status, matching resources/views/partials/status.
+        const statusBadge = {
+            pending:         'bg-amber-100 text-amber-800',
+            confirmed:       'bg-sky-100 text-sky-800',
+            send_to_courier: 'bg-violet-100 text-violet-800',
+            shipped:         'bg-indigo-100 text-indigo-800',
+            delivered:       'bg-emerald-100 text-emerald-800',
+            returned:        'bg-red-100 text-red-800',
+            cancelled:       'bg-slate-200 text-slate-700',
+        };
+
+        let currentSaleId = null;
+
+        function openStatusModal() {
+            statusModal.classList.remove('hidden');
+            statusModal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+            requestAnimationFrame(() => {
+                statusCard.classList.remove('scale-95', 'opacity-0');
+            });
+        }
+        function closeStatusModal() {
+            statusCard.classList.add('scale-95', 'opacity-0');
+            document.body.style.overflow = '';
+            setTimeout(() => {
+                statusModal.classList.add('hidden');
+                statusModal.classList.remove('flex');
+            }, 200);
+        }
+
+        document.querySelectorAll('.saleActionBtn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const label       = btn.dataset.saleLabel || 'this sale';
+                const current     = btn.dataset.current;
+                const currentVal  = btn.dataset.currentValue;
+                const next        = JSON.parse(btn.dataset.next || '[]');
+
+                currentSaleId = btn.dataset.saleId;
+                statusSubmit.disabled = true;
+
+                document.getElementById('statusModalProduct').textContent = label;
+                const curBadge = document.getElementById('statusModalCurrentBadge');
+                curBadge.textContent = current;
+                curBadge.className = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold '
+                                   + (statusBadge[currentVal] || 'bg-slate-100 text-slate-700');
+
+                statusSelect.innerHTML = '<option value="">Choose a status…</option>';
+                next.forEach(function (opt) {
+                    const o = document.createElement('option');
+                    o.value = opt.value;
+                    o.textContent = 'Mark as ' + opt.label;
+                    statusSelect.appendChild(o);
+                });
+                statusSelect.value = '';
+
+                openStatusModal();
+            });
+        });
+
+        statusSelect.addEventListener('change', function () {
+            statusSubmit.disabled = this.value === '';
+        });
+
+        statusSubmit.addEventListener('click', function () {
+            if (!statusSelect.value || !currentSaleId) return;
+            statusSubmit.disabled = true;
+            statusForm.setAttribute('action', statusRouteTemplate.replace('SALE_ID', currentSaleId));
+            document.getElementById('statusFormValue').value = statusSelect.value;
+            statusForm.submit();
+        });
+
+        document.getElementById('statusModalClose').addEventListener('click', closeStatusModal);
+        document.getElementById('statusModalCancel').addEventListener('click', closeStatusModal);
+        document.getElementById('statusModalBackdrop').addEventListener('click', closeStatusModal);
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !statusModal.classList.contains('hidden')) closeStatusModal();
+        });
+        @endif
     </script>
     @endpush
 </x-app-layout>

@@ -28,14 +28,14 @@ class DashboardController extends Controller
             'pending_amount' => (clone $requisitionQuery)->where('status', 'pending')->whereBetween('requested_at', [$monthStart, $monthEnd])->sum('total_amount'),
             'pending_count' => (clone $requisitionQuery)->where('status', 'pending')->count(),
             'paid_amount' => Payment::query()->whereBetween('payment_date', [$monthStart, $monthEnd])->sum('amount'),
-            'sales_revenue' => Sale::query()->where('status', 'completed')->whereBetween('sold_date', [$monthStart, $monthEnd])->selectRaw('COALESCE(SUM(selling_price * quantity), 0) as total')->value('total'),
+            'sales_revenue' => Sale::query()->where('status', 'delivered')->whereBetween('sold_date', [$monthStart, $monthEnd])->selectRaw('COALESCE(SUM(selling_price * quantity), 0) as total')->value('total'),
             'stock_count' => Product::query()->sum('current_stock'),
             'returns_count' => ProductReturn::query()->whereBetween('return_date', [$monthStart, $monthEnd])->count(),
         ];
         $summary['net_profit'] = $summary['sales_revenue'] - $summary['paid_amount'];
 
         $accounts = DarazAccount::query()
-            ->withCount(['sales as completed_sales_count' => fn ($query) => $query->where('status', 'completed')])
+            ->withCount(['sales as completed_sales_count' => fn ($query) => $query->where('status', 'delivered')])
             ->orderBy('account_name')
             ->get();
 

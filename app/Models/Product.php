@@ -6,14 +6,24 @@ use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
 {
-    protected $fillable = ['name', 'sku', 'image', 'default_purchase_price', 'current_stock'];
+    protected $fillable = ['name', 'sku', 'image', 'default_purchase_price', 'current_stock', 'booked_stock'];
 
     protected function casts(): array
     {
         return [
             'default_purchase_price' => 'decimal:2',
             'current_stock' => 'integer',
+            'booked_stock' => 'integer',
         ];
+    }
+
+    /**
+     * Stock that can still be sold: on-hand minus quantity reserved for orders
+     * that have shipped but not yet delivered.
+     */
+    public function availableStock(): int
+    {
+        return $this->current_stock - $this->booked_stock;
     }
 
     /**

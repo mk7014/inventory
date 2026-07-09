@@ -109,6 +109,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     });
     Route::middleware('permission:sales.create')
         ->post('/sales', [SaleController::class, 'store'])->name('sales.store');
+    Route::middleware('permission:sales.update')
+        ->patch('/sales/{sale}/status', [SaleController::class, 'updateStatus'])->name('sales.status.update');
 
     // ── Returns ─────────────────────────────────────────────────────
     Route::middleware('permission:returns.view')
@@ -183,4 +185,17 @@ Route::middleware(['auth', 'active'])->group(function () {
     // ── Employee Balances (admin overview) ──────────────────────────
     Route::middleware('permission:balances.view')
         ->get('/balances', [BalanceController::class, 'index'])->name('balances.index');
+
+    // ── Admin-only hard delete (dummy/test data cleanup) ────────────
+    // Force-deletes a record with all of its child rows and ledger entries.
+    // Restricted to the admin role — it does not reverse stock/balance effects.
+    Route::middleware('role:admin')->group(function () {
+        Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+        Route::delete('/accounts/{account}', [DarazAccountController::class, 'destroy'])->name('accounts.destroy');
+        Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
+        Route::delete('/warehouses/{warehouse}', [WarehouseController::class, 'destroy'])->name('warehouses.destroy');
+        Route::delete('/sales/{sale}', [SaleController::class, 'destroy'])->name('sales.destroy');
+        Route::delete('/requisitions/{requisition}', [RequisitionController::class, 'destroy'])->name('requisitions.destroy');
+        Route::delete('/direct-purchases/{purchase}', [DirectPurchaseController::class, 'destroy'])->name('direct-purchases.destroy');
+    });
 });

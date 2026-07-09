@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SupplierStoreRequest;
 use App\Models\Supplier;
+use App\Services\DeletionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -26,5 +27,12 @@ class SupplierController extends Controller
         $supplier->update($request->validated());
 
         return back()->with('success', 'Supplier updated.');
+    }
+
+    public function destroy(Supplier $supplier, DeletionService $service): RedirectResponse
+    {
+        $service->deleteSupplier($supplier);
+
+        return back()->with('success', 'Supplier deleted.');
     }
 }

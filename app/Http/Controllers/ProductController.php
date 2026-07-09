@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ProductStoreRequest;
 use App\Models\Product;
+use App\Services\DeletionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -58,5 +59,16 @@ class ProductController extends Controller
         $product->update($data);
 
         return back()->with('success', 'Product updated.');
+    }
+
+    public function destroy(Product $product, DeletionService $service): RedirectResponse
+    {
+        if ($product->image) {
+            Storage::disk('public')->delete($product->image);
+        }
+
+        $service->deleteProduct($product);
+
+        return back()->with('success', 'Product deleted.');
     }
 }

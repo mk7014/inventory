@@ -4,11 +4,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* ── Accordion sidebar ───────────────────────────────────────── */
 
-    // Open active group immediately (no animation on first load)
+    // Pin the active group's exact height WITHOUT animating on first load.
+    // Transition is disabled while we set max-height, then restored, so the
+    // menu never re-animates/jumps when navigating between pages.
     document.querySelectorAll('.nav-group.open').forEach(function (group) {
         var submenu = group.querySelector('.nav-submenu');
         if (submenu) {
+            submenu.style.transition = 'none';
             submenu.style.maxHeight = submenu.scrollHeight + 'px';
+            submenu.offsetHeight; // force reflow to lock in the value
+            submenu.style.transition = '';
         }
     });
 

@@ -59,7 +59,7 @@ return [
         'sales' => [
             'label'   => 'Sales',
             'group'   => 'Operations',
-            'actions' => ['view', 'create'],
+            'actions' => ['view', 'create', 'update'],
             'menu'    => ['route' => 'sales.index', 'label' => 'Sales', 'parent' => 'Operations'],
         ],
         'returns' => [

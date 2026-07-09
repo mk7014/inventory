@@ -145,6 +145,7 @@
                         <th class="px-5 py-3">Payment</th>
                         <th class="px-5 py-3">Purchase</th>
                         <th class="px-5 py-3">Date</th>
+                        @if(auth()->user()->isAdmin())<th class="px-5 py-3 text-right">Delete</th>@endif
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -216,10 +217,15 @@
                             <td class="whitespace-nowrap px-5 py-3 text-xs text-slate-400">
                                 {{ $row->requested_at->format('d M Y') }}
                             </td>
+                            @if(auth()->user()->isAdmin())
+                                <td class="px-5 py-3 text-right">
+                                    @include('partials.delete-button', ['action' => route('requisitions.destroy', $row), 'label' => 'requisition '.$row->requisition_number])
+                                </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-5 py-16 text-center">
+                            <td colspan="{{ auth()->user()->isAdmin() ? 9 : 8 }}" class="px-5 py-16 text-center">
                                 <div class="flex flex-col items-center gap-3">
                                     <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50">
                                         <svg class="h-7 w-7 text-slate-200" fill="none" viewBox="0 0 24 24"

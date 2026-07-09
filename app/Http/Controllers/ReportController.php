@@ -18,14 +18,14 @@ class ReportController extends Controller
     {
         [$from, $to] = $this->range($request);
 
-        $revenue = Sale::query()->where('status', 'completed')->whereBetween('sold_date', [$from, $to])->selectRaw('COALESCE(SUM(selling_price * quantity), 0) as total')->value('total');
+        $revenue = Sale::query()->where('status', 'delivered')->whereBetween('sold_date', [$from, $to])->selectRaw('COALESCE(SUM(selling_price * quantity), 0) as total')->value('total');
         $cost = Payment::query()->whereBetween('payment_date', [$from, $to])->sum('amount');
         $pending = Requisition::query()->where('status', 'pending')->whereBetween('requested_at', [$from, $to])->sum('total_amount');
 
         $accountRows = DarazAccount::query()
             ->leftJoin('sales', function ($join) use ($from, $to) {
                 $join->on('daraz_accounts.id', '=', 'sales.daraz_account_id')
-                    ->where('sales.status', '=', 'completed')
+                    ->where('sales.status', '=', 'delivered')
                     ->whereBetween('sales.sold_date', [$from, $to]);
             })
             ->selectRaw('daraz_accounts.id, daraz_accounts.account_name, daraz_accounts.shop_name, COALESCE(SUM(sales.selling_price * sales.quantity), 0) as revenue')

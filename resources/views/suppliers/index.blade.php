@@ -82,6 +82,7 @@
                             <th class="px-4 py-3">Address</th>
                             <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3"></th>
+                            @if(auth()->user()?->isAdmin())<th class="px-4 py-3 text-right">Delete</th>@endif
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -118,9 +119,14 @@
                                         </button>
                                     </td>
                                 </form>
+                                @if(auth()->user()?->isAdmin())
+                                    <td class="px-4 py-2.5 text-right">
+                                        @include('partials.delete-button', ['action' => route('suppliers.destroy', $supplier), 'label' => $supplier->name])
+                                    </td>
+                                @endif
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="px-5 py-10 text-center text-sm text-slate-400">No suppliers yet.</td></tr>
+                            <tr><td colspan="6" class="px-5 py-10 text-center text-sm text-slate-400">No suppliers yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

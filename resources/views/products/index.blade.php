@@ -166,21 +166,24 @@
                                 </span>
                             </td>
                             <td class="px-5 py-3 text-right">
-                                <button type="button"
-                                        class="edit-product inline-flex items-center gap-1.5 rounded-lg border border-slate-200
-                                               bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition
-                                               hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
-                                        data-action="{{ route('products.update', $product) }}"
-                                        data-name="{{ $product->name }}"
-                                        data-sku="{{ $product->sku }}"
-                                        data-price="{{ $product->default_purchase_price }}"
-                                        data-image="{{ $product->imageUrl() }}">
-                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                    </svg>
-                                    Edit
-                                </button>
+                                <div class="inline-flex items-center gap-1">
+                                    <button type="button"
+                                            class="edit-product inline-flex items-center gap-1.5 rounded-lg border border-slate-200
+                                                   bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition
+                                                   hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                                            data-action="{{ route('products.update', $product) }}"
+                                            data-name="{{ $product->name }}"
+                                            data-sku="{{ $product->sku }}"
+                                            data-price="{{ $product->default_purchase_price }}"
+                                            data-image="{{ $product->imageUrl() }}">
+                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg>
+                                        Edit
+                                    </button>
+                                    @include('partials.delete-button', ['action' => route('products.destroy', $product), 'label' => $product->name])
+                                </div>
                             </td>
                         </tr>
                     @empty

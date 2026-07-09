@@ -41,11 +41,23 @@ class ReturnService
                 'created_by' => $user->id,
             ]);
 
-            $lockedSale->update(['status' => 'returned']);
+            // Restock good-condition returns, but only once: the shared stock_state
+            // flag also stops the sales Action menu from restoring the same sale.
+            $restock = $return->condition === 'good'
+                && $lockedSale->affectsStock()
+                && $lockedSale->stock_state !== 'returned';
 
-            if ($return->condition === 'good' && $lockedSale->product) {
+            if ($restock) {
                 $this->stockService->move($lockedSale->product, 'in_return', $return->quantity, $return, $user->id);
             }
+
+            $lockedSale->update([
+                'status' => 'returned',
+                'stock_state' => 'returned',
+                'returned_quantity' => $return->quantity,
+                'status_updated_at' => now(),
+                'status_updated_by' => $user->id,
+            ]);
 
             $this->auditService->record('return.created', $return, null, $return->toArray());
 

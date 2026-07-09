@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Services\DeletionService;
 use App\Services\DirectPurchaseService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -122,6 +123,13 @@ class DirectPurchaseController extends Controller
             'totalDue'     => (float) $base->clone()->sum('grand_total'),
             'totalPaid'    => (float) $base->clone()->sum('paid_amount'),
         ]);
+    }
+
+    public function destroy(DirectPurchase $purchase, DeletionService $service): RedirectResponse
+    {
+        $service->deleteDirectPurchase($purchase);
+
+        return redirect()->route('direct-purchases.index')->with('success', 'Direct purchase deleted.');
     }
 
     /**

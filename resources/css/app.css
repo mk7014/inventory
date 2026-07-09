@@ -90,6 +90,14 @@
     transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* The group matching the current route is server-rendered `.open`, so it must
+   already be expanded on the very first paint. Without this the JS would open
+   it after load and it would re-animate on every navigation (the menu appeared
+   to "jump"/swap each time). JS later pins the exact height for smooth toggling. */
+.nav-group.open > .nav-submenu {
+    max-height: 24rem;
+}
+
 /* Child items */
 .nav-child {
     display: flex;

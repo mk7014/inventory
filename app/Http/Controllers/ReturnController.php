@@ -24,7 +24,7 @@ class ReturnController extends Controller
 
         return view('returns.index', [
             'returns' => ProductReturn::query()->with('sale')->latest('return_date')->paginate(15),
-            'sales' => Sale::query()->where('status', 'completed')->latest('sold_date')->limit(100)->get(),
+            'sales' => Sale::query()->where('status', 'delivered')->latest('sold_date')->limit(100)->get(),
             'stats' => $stats,
         ]);
     }

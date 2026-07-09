@@ -6,6 +6,7 @@ use App\Http\Requests\RequisitionStoreRequest;
 use App\Models\DarazAccount;
 use App\Models\Product;
 use App\Models\Requisition;
+use App\Services\DeletionService;
 use App\Services\RequisitionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -71,5 +72,12 @@ class RequisitionController extends Controller
         return view('requisitions.show', [
             'requisition' => $requisition->load('employee', 'reviewer', 'items.account', 'items.product', 'payments', 'expenses'),
         ]);
+    }
+
+    public function destroy(Requisition $requisition, DeletionService $service): RedirectResponse
+    {
+        $service->deleteRequisition($requisition);
+
+        return redirect()->route('requisitions.index')->with('success', 'Requisition deleted.');
     }
 }

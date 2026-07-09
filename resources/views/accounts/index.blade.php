@@ -74,6 +74,7 @@
                             <th class="px-5 py-3">Shop Name</th>
                             <th class="px-5 py-3">Status</th>
                             <th class="px-5 py-3"></th>
+                            @if(auth()->user()?->isAdmin())<th class="px-5 py-3 text-right">Delete</th>@endif
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -104,6 +105,11 @@
                                         </button>
                                     </td>
                                 </form>
+                                @if(auth()->user()?->isAdmin())
+                                    <td class="px-4 py-2.5 text-right">
+                                        @include('partials.delete-button', ['action' => route('accounts.destroy', $account), 'label' => $account->account_name])
+                                    </td>
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\WarehouseStoreRequest;
 use App\Models\Warehouse;
+use App\Services\DeletionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -26,5 +27,12 @@ class WarehouseController extends Controller
         $warehouse->update($request->validated());
 
         return back()->with('success', 'Warehouse updated.');
+    }
+
+    public function destroy(Warehouse $warehouse, DeletionService $service): RedirectResponse
+    {
+        $service->deleteWarehouse($warehouse);
+
+        return back()->with('success', 'Warehouse deleted.');
     }
 }
