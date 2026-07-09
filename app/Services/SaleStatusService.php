@@ -88,7 +88,7 @@ class SaleStatusService
     private function applyStockMovement(Sale $sale, SaleStatus $target, User $user): ?string
     {
         if (! $sale->affectsStock()) {
-            // new_purchase (or product-less) sales carry the status only.
+            // Product-less manual sales carry the status only (no inventory).
             if ($target === SaleStatus::Delivered) {
                 $sale->delivered_quantity = $sale->quantity;
             } elseif ($target === SaleStatus::Returned) {

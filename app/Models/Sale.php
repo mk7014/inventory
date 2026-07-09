@@ -70,9 +70,13 @@ class Sale extends Model
         return $this->statusEnum()->allowedNext();
     }
 
-    /** Whether this sale affects inventory (stock-source with a real product). */
+    /**
+     * Whether this sale affects inventory. Any sale tied to a real product moves
+     * stock (reserved on Shipped, deducted on Delivered) regardless of its source
+     * label — a product-less manual sale carries the status only.
+     */
     public function affectsStock(): bool
     {
-        return $this->source === 'stock' && $this->product_id !== null;
+        return $this->product_id !== null;
     }
 }
