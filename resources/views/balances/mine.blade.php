@@ -62,7 +62,10 @@
             <div class="flex items-start justify-between">
                 <div class="min-w-0">
                     <p class="text-[11px] font-semibold uppercase tracking-widest text-emerald-600">Current Balance</p>
-                    <p class="mt-2 text-2xl font-bold text-[#17211c]">৳ {{ number_format($user->balance, 2) }}</p>
+                    <p class="mt-2 text-2xl font-bold {{ (float) $user->balance < 0 ? 'text-red-600' : 'text-[#17211c]' }}">৳ {{ number_format($user->balance, 2) }}</p>
+                    @if((float) $user->balance < 0)
+                        <p class="mt-1 text-[11px] font-semibold text-red-500">The company owes you ৳{{ number_format(abs((float) $user->balance), 2) }}.</p>
+                    @endif
                     <p class="mt-1 inline-flex items-center gap-1 text-xs font-medium text-emerald-500">
                         View full statement
                         <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none"

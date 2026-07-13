@@ -43,8 +43,13 @@ class BalanceService
      * (stored as a negative amount so SUM(amount) still equals the balance).
      * Rejects a debit that would drive the balance below zero. Caller supplies
      * the surrounding DB::transaction().
+     *
+     * $allowNegative lets the balance go below zero, which is only meaningful for
+     * money the employee paid out of their own pocket (a "due" direct purchase):
+     * there the negative balance IS the company's debt to them, cleared when the
+     * settlement payment credits it back.
      */
-    public function debit(User $user, float $amount, ?Model $reference = null, ?int $userId = null, string $type = 'debit', ?string $note = null): BalanceTransaction
+    public function debit(User $user, float $amount, ?Model $reference = null, ?int $userId = null, string $type = 'debit', ?string $note = null, bool $allowNegative = false): BalanceTransaction
     {
         if ($amount <= 0) {
             throw ValidationException::withMessages(['amount' => 'Debit amount must be greater than zero.']);
@@ -53,7 +58,7 @@ class BalanceService
         $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
         $newBalance = (float) $lockedUser->balance - $amount;
 
-        if ($newBalance < 0) {
+        if ($newBalance < 0 && ! $allowNegative) {
             throw ValidationException::withMessages(['amount' => 'Insufficient balance to record this purchase.']);
         }
 

@@ -118,7 +118,7 @@
                     @if($purchase->isAdvance())
                         ৳{{ number_format($purchase->grand_total, 2) }} will be deducted from {{ $purchase->employee->name }}'s balance.
                     @else
-                        The company will owe {{ $purchase->employee->name }} ৳{{ number_format($purchase->grand_total, 2) }} (settle via payments).
+                        ৳{{ number_format($purchase->grand_total, 2) }} will be deducted from {{ $purchase->employee->name }}'s balance — it may go negative, which is the company's debt. Recording a payment credits it back.
                     @endif
                 </p>
                 <form method="post" action="{{ route('direct-purchases.review', $purchase) }}"
@@ -147,6 +147,7 @@
                 @csrf
                 <h2 class="text-[13px] font-bold text-[#17211c]">Record Payment</h2>
                 <p class="text-[11px] text-slate-400">Outstanding due: <span class="font-semibold text-rose-600">৳ {{ number_format($due, 2) }}</span></p>
+                <p class="text-[11px] text-slate-400">The paid amount is credited back to {{ $purchase->employee->name }}'s balance.</p>
                 <input name="amount" type="number" step="0.01" min="0.01" max="{{ $due }}" placeholder="Amount" required
                        class="ppp-field">
                 <select name="payment_method" required

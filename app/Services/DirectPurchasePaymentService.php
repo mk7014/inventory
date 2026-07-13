@@ -11,8 +11,10 @@ use Illuminate\Validation\ValidationException;
 
 class DirectPurchasePaymentService
 {
-    public function __construct(private AuditService $auditService)
-    {
+    public function __construct(
+        private BalanceService $balanceService,
+        private AuditService $auditService,
+    ) {
     }
 
     /**
@@ -20,8 +22,10 @@ class DirectPurchasePaymentService
      * settling money the employee paid out of pocket. Supports partial and full
      * payments; the running paid_amount / payment_status are kept in sync.
      *
-     * This does NOT touch the employee's advance wallet: a due settlement returns
-     * money the employee already spent, it does not grant new spendable advance.
+     * Approval already debited the full cost from the employee's wallet (pushing it
+     * negative if it was empty), so each settlement credits the paid amount back:
+     * a fully settled due purchase nets to zero on the wallet, and a partial one
+     * leaves only the unsettled remainder outstanding.
      */
     public function create(DirectPurchase $purchase, array $data, User $admin): DirectPurchasePayment
     {
@@ -63,6 +67,15 @@ class DirectPurchasePaymentService
                 'paid_amount'    => $newPaid,
                 'payment_status' => $newPaid + 0.001 >= (float) $locked->grand_total ? 'paid' : 'partial',
             ]);
+
+            $this->balanceService->credit(
+                $locked->employee,
+                $amount,
+                $payment,
+                $admin->id,
+                'credit_direct_purchase_settlement',
+                'Settlement for direct purchase '.$locked->purchase_number,
+            );
 
             $this->auditService->record('direct_purchase.payment', $payment, null, $payment->toArray());
             $locked->employee->notify(new SystemNotification('Direct purchase payment recorded', route('direct-purchases.show', $locked), 'direct_purchase'));

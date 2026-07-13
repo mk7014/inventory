@@ -24,7 +24,7 @@
         </div>
         <div class="stat-card rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
             <p class="text-[11px] font-semibold uppercase tracking-widest text-emerald-600">Current Balance</p>
-            <p class="mt-2 text-xl font-bold text-[#17211c]">৳ {{ number_format($user->balance, 2) }}</p>
+            <p class="mt-2 text-xl font-bold {{ (float) $user->balance < 0 ? 'text-red-600' : 'text-[#17211c]' }}">৳ {{ number_format($user->balance, 2) }}</p>
         </div>
     </div>
 

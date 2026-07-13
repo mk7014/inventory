@@ -94,9 +94,14 @@ class DirectPurchaseService
 
     /**
      * Approve a pending direct purchase: receive every line into stock using the
-     * shared StockService, and — for advance purchases — debit the cost from the
-     * employee's wallet. Due purchases record no wallet movement; the company
-     * owes the employee, settled later via DirectPurchasePayment.
+     * shared StockService and debit the cost from the employee's wallet.
+     *
+     * Advance purchases spend company money already in the wallet, so the debit is
+     * capped at the available balance. Due purchases were paid out of the
+     * employee's own pocket, so the debit is allowed to push the wallet negative —
+     * a negative balance is exactly the company's outstanding debt, and it climbs
+     * back towards zero when the settlement payment credits it (see
+     * DirectPurchasePaymentService) or when the admin tops the wallet up.
      */
     public function approve(DirectPurchase $purchase, User $admin): DirectPurchase
     {
@@ -112,17 +117,15 @@ class DirectPurchaseService
                 $this->stockService->move($product, 'in_purchase', (int) $item->quantity, $item, $admin->id);
             }
 
-            if ($locked->isAdvance()) {
-                // Advance-funded: the cost comes straight off the employee's wallet.
-                $this->balanceService->debit(
-                    $locked->employee,
-                    (float) $locked->grand_total,
-                    $locked,
-                    $admin->id,
-                    'debit_direct_purchase',
-                    'Direct purchase '.$locked->purchase_number,
-                );
-            }
+            $this->balanceService->debit(
+                $locked->employee,
+                (float) $locked->grand_total,
+                $locked,
+                $admin->id,
+                $locked->isAdvance() ? 'debit_direct_purchase' : 'debit_direct_purchase_due',
+                'Direct purchase '.$locked->purchase_number.($locked->isDue() ? ' (out of pocket)' : ''),
+                allowNegative: $locked->isDue(),
+            );
 
             $locked->update([
                 'status'      => 'approved',

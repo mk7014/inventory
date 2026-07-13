@@ -55,7 +55,7 @@
                             </td>
                             <td class="px-5 py-3 text-slate-500">{{ $user->email }}</td>
                             <td class="px-5 py-3">@include('partials.status', ['status' => $user->status])</td>
-                            <td class="px-5 py-3 text-right font-bold text-emerald-700">
+                            <td class="px-5 py-3 text-right font-bold {{ (float) $user->balance < 0 ? 'text-red-600' : 'text-emerald-700' }}">
                                 ৳ {{ number_format($user->balance, 2) }}
                             </td>
                         </tr>

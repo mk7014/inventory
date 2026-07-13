@@ -44,7 +44,7 @@
                             <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                             <div>
                                 <dt class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Balance</dt>
-                                <dd class="text-[12px] font-bold text-emerald-700">৳ {{ number_format($user->balance, 2) }}</dd>
+                                <dd class="text-[12px] font-bold {{ (float) $user->balance < 0 ? 'text-red-600' : 'text-emerald-700' }}">৳ {{ number_format($user->balance, 2) }}</dd>
                             </div>
                         </div>
                     </dl>
