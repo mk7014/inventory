@@ -60,7 +60,7 @@
 
                 @php
                     $dashActive  = request()->routeIs('dashboard');
-                    $opsActive   = request()->routeIs('requisitions.*','direct-purchases.*','direct-purchase-payments.*','payments.*','sales.*','returns.*');
+                    $opsActive   = request()->routeIs('requisitions.*','direct-purchases.*','payments.*','sales.*','returns.*');
                     $invActive   = request()->routeIs('products.*','reports.*');
                     $adminActive = request()->routeIs('accounts.*','suppliers.*','warehouses.*','users.*','roles.*','balances.*');
                 @endphp
@@ -155,7 +155,7 @@
                             @endcan
                             @can('direct_purchases.view')
                             <a href="{{ route('direct-purchases.index') }}"
-                               class="nav-child {{ request()->routeIs('direct-purchases.*','direct-purchase-payments.*') ? 'nav-child-active' : '' }}">
+                               class="nav-child {{ request()->routeIs('direct-purchases.*') ? 'nav-child-active' : '' }}">
                                 <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
                                      stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round"

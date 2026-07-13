@@ -19,8 +19,7 @@ class DirectPurchaseApprovalController extends Controller
         if ($data['action'] === 'approve') {
             $service->approve($purchase, $request->user());
 
-            return back()->with('success', 'Direct purchase approved — stock received'
-                .($purchase->isAdvance() ? ' and balance deducted.' : '. Outstanding due recorded.'));
+            return back()->with('success', 'Direct purchase approved — stock received and balance deducted.');
         }
 
         $service->cancel($purchase, $request->user());

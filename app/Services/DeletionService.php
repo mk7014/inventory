@@ -7,7 +7,6 @@ use App\Models\BalanceTransaction;
 use App\Models\DarazAccount;
 use App\Models\DirectPurchase;
 use App\Models\DirectPurchaseItem;
-use App\Models\DirectPurchasePayment;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductReturn;
@@ -76,14 +75,12 @@ class DeletionService
     public function deleteDirectPurchase(DirectPurchase $purchase): void
     {
         DB::transaction(function () use ($purchase) {
-            $itemIds    = $purchase->items()->pluck('id')->all();
-            $paymentIds = $purchase->payments()->pluck('id')->all();
+            $itemIds = $purchase->items()->pluck('id')->all();
 
             $this->purgeLedger(DirectPurchaseItem::class, $itemIds);
-            $this->purgeLedger(DirectPurchasePayment::class, $paymentIds);
             $this->purgeLedger(DirectPurchase::class, [$purchase->id]);
 
-            // items + payments cascade via their FK on delete.
+            // items cascade via their FK on delete.
             $purchase->delete();
         });
     }

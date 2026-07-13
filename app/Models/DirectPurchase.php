@@ -11,9 +11,7 @@ class DirectPurchase extends Model
         'employee_id',
         'supplier_id',
         'warehouse_id',
-        'payment_type',
         'status',
-        'payment_status',
         'purchase_date',
         'invoice_number',
         'reference_number',
@@ -22,7 +20,6 @@ class DirectPurchase extends Model
         'discount_total',
         'tax_total',
         'grand_total',
-        'paid_amount',
         'approved_at',
         'approved_by',
         'created_by',
@@ -36,37 +33,13 @@ class DirectPurchase extends Model
             'discount_total' => 'decimal:2',
             'tax_total'      => 'decimal:2',
             'grand_total'    => 'decimal:2',
-            'paid_amount'    => 'decimal:2',
             'approved_at'    => 'datetime',
         ];
-    }
-
-    public function isAdvance(): bool
-    {
-        return $this->payment_type === 'advance';
-    }
-
-    public function isDue(): bool
-    {
-        return $this->payment_type === 'due';
     }
 
     public function isApproved(): bool
     {
         return $this->status === 'approved';
-    }
-
-    /**
-     * Outstanding amount still owed to the employee (due purchases only).
-     * Advance purchases carry no due — the cost came straight off the wallet.
-     */
-    public function dueAmount(): float
-    {
-        if (! $this->isDue()) {
-            return 0.0;
-        }
-
-        return max((float) $this->grand_total - (float) $this->paid_amount, 0.0);
     }
 
     public function employee()
@@ -97,10 +70,5 @@ class DirectPurchase extends Model
     public function items()
     {
         return $this->hasMany(DirectPurchaseItem::class);
-    }
-
-    public function payments()
-    {
-        return $this->hasMany(DirectPurchasePayment::class);
     }
 }

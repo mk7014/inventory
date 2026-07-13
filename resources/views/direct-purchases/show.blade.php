@@ -7,7 +7,6 @@
     @php
         $isAdmin  = auth()->user()->isAdmin();
         $canApprove = $isAdmin || auth()->user()->hasPermission('direct_purchases.approve');
-        $due      = $purchase->dueAmount();
     @endphp
 
     <div class="grid gap-6 xl:grid-cols-3">
@@ -19,23 +18,14 @@
             <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-white px-5 py-4 shadow-sm">
                 <div class="flex items-center gap-2">
                     @include('partials.status', ['status' => $purchase->status])
-                    <span class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold {{ $purchase->payment_type === 'advance' ? 'bg-indigo-50 text-indigo-700' : 'bg-amber-50 text-amber-700' }}">
-                        {{ ucfirst($purchase->payment_type) }}
-                    </span>
-                    @if($purchase->status === 'approved')
-                        @include('partials.status', ['status' => $purchase->payment_status])
-                    @endif
                 </div>
                 <div class="flex flex-wrap gap-4 text-right text-sm">
                     <div class="text-slate-500">Grand Total
                         <div class="font-bold text-slate-800">৳ {{ number_format($purchase->grand_total, 2) }}</div>
                     </div>
-                    @if($purchase->isDue())
-                    <div class="text-slate-500">Paid
-                        <div class="font-bold text-emerald-700">৳ {{ number_format($purchase->paid_amount, 2) }}</div>
-                    </div>
-                    <div class="text-slate-500">Due
-                        <div class="font-bold {{ $due > 0 ? 'text-rose-600' : 'text-emerald-700' }}">৳ {{ number_format($due, 2) }}</div>
+                    @if($purchase->status === 'approved')
+                    <div class="text-slate-500">Deducted from balance
+                        <div class="font-bold text-rose-600">− ৳ {{ number_format($purchase->grand_total, 2) }}</div>
                     </div>
                     @endif
                 </div>
@@ -114,12 +104,10 @@
             <div class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm space-y-3">
                 <h2 class="text-[13px] font-bold text-[#17211c]">Review Purchase</h2>
                 <p class="text-[11px] text-slate-400">
-                    Approving receives {{ $purchase->items->sum('quantity') }} unit(s) into stock.
-                    @if($purchase->isAdvance())
-                        ৳{{ number_format($purchase->grand_total, 2) }} will be deducted from {{ $purchase->employee->name }}'s balance.
-                    @else
-                        ৳{{ number_format($purchase->grand_total, 2) }} will be deducted from {{ $purchase->employee->name }}'s balance — it may go negative, which is the company's debt. Recording a payment credits it back.
-                    @endif
+                    Approving receives {{ $purchase->items->sum('quantity') }} unit(s) into stock and deducts
+                    ৳{{ number_format($purchase->grand_total, 2) }} from {{ $purchase->employee->name }}'s balance
+                    (currently ৳{{ number_format((float) $purchase->employee->balance, 2) }}). The balance may go negative —
+                    that is what the company owes back, and it clears when their balance is credited again.
                 </p>
                 <form method="post" action="{{ route('direct-purchases.review', $purchase) }}"
                       onsubmit="return confirm('Approve this direct purchase? Stock will be received.');">
@@ -140,57 +128,21 @@
             </div>
             @endif
 
-            {{-- Record payment (due, approved, outstanding) --}}
-            @if($canApprove && $purchase->isDue() && $purchase->status === 'approved' && $due > 0)
-            <form method="post" action="{{ route('direct-purchases.payments.store', $purchase) }}"
-                  class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm space-y-3">
-                @csrf
-                <h2 class="text-[13px] font-bold text-[#17211c]">Record Payment</h2>
-                <p class="text-[11px] text-slate-400">Outstanding due: <span class="font-semibold text-rose-600">৳ {{ number_format($due, 2) }}</span></p>
-                <p class="text-[11px] text-slate-400">The paid amount is credited back to {{ $purchase->employee->name }}'s balance.</p>
-                <input name="amount" type="number" step="0.01" min="0.01" max="{{ $due }}" placeholder="Amount" required
-                       class="ppp-field">
-                <select name="payment_method" required
-                        class="ppp-field">
-                    @foreach(['cash','bkash','nagad','bank'] as $method)
-                        <option value="{{ $method }}">{{ ucfirst($method) }}</option>
-                    @endforeach
-                </select>
-                <input name="payment_date" type="datetime-local" value="{{ now()->format('Y-m-d\TH:i') }}" required
-                       class="ppp-field">
-                <input name="reference" placeholder="Reference"
-                       class="ppp-field">
-                <textarea name="note" rows="2" placeholder="Payment note"
-                          class="ppp-field"></textarea>
-                <button class="w-full rounded-xl bg-[#17211c] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black">Save Payment</button>
-            </form>
-            @endif
-
-            {{-- Payment history --}}
-            @if($purchase->isDue())
-            <section class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-                <h2 class="mb-3 text-[13px] font-bold text-[#17211c]">Payment History</h2>
-                <div class="divide-y divide-slate-100">
-                    @php
-                        $methodColors = [
-                            'bkash' => 'bg-pink-50 text-pink-700', 'nagad' => 'bg-orange-50 text-orange-700',
-                            'bank' => 'bg-indigo-50 text-indigo-700', 'cash' => 'bg-emerald-50 text-emerald-700',
-                        ];
-                    @endphp
-                    @forelse($purchase->payments->sortByDesc('payment_date') as $payment)
-                    @php $mc = $methodColors[$payment->payment_method] ?? 'bg-slate-100 text-slate-600'; @endphp
-                    <div class="py-3">
-                        <div class="flex items-center justify-between">
-                            <span class="font-semibold text-sm text-slate-800">৳ {{ number_format($payment->amount, 2) }}</span>
-                            <span class="rounded-full px-2.5 py-1 text-[10px] font-semibold {{ $mc }}">{{ ucfirst($payment->payment_method) }}</span>
-                        </div>
-                        <p class="mt-0.5 text-[11px] text-slate-400">{{ $payment->payment_date->format('d M Y, h:i A') }}
-                            @if($payment->reference)• {{ $payment->reference }}@endif</p>
-                    </div>
-                    @empty
-                    <p class="py-4 text-sm text-slate-400">No payments recorded.</p>
-                    @endforelse
-                </div>
+            {{-- Balance effect (approved) --}}
+            @if($purchase->status === 'approved')
+            <section class="rounded-2xl border border-amber-100 bg-amber-50/50 p-5 shadow-sm">
+                <h2 class="text-[13px] font-bold text-[#17211c]">Balance Effect</h2>
+                <p class="mt-1 text-[11px] text-slate-500">
+                    ৳{{ number_format($purchase->grand_total, 2) }} was deducted from {{ $purchase->employee->name }}'s balance
+                    on approval, which now stands at
+                    <span class="font-semibold {{ (float) $purchase->employee->balance < 0 ? 'text-red-600' : 'text-slate-700' }}">৳{{ number_format((float) $purchase->employee->balance, 2) }}</span>.
+                    A negative balance is what the company owes back; it clears automatically the next time their balance is credited.
+                </p>
+                @if($purchase->employee_id === auth()->id())
+                    <a href="{{ route('balance.statement') }}" class="mt-2 inline-block text-[11px] font-semibold text-[#287857] hover:underline">View my balance statement</a>
+                @elseif($isAdmin)
+                    <a href="{{ route('balances.index') }}" class="mt-2 inline-block text-[11px] font-semibold text-[#287857] hover:underline">View employee balances</a>
+                @endif
             </section>
             @endif
 

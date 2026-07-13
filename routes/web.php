@@ -6,7 +6,6 @@ use App\Http\Controllers\DarazAccountController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DirectPurchaseApprovalController;
 use App\Http\Controllers\DirectPurchaseController;
-use App\Http\Controllers\DirectPurchasePaymentController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
@@ -93,12 +92,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     });
     Route::middleware('permission:direct_purchases.approve')->group(function () {
         Route::post('/direct-purchases/{purchase}/review', DirectPurchaseApprovalController::class)->name('direct-purchases.review');
-        Route::post('/direct-purchases/{purchase}/payments', [DirectPurchasePaymentController::class, 'store'])->name('direct-purchases.payments.store');
     });
     Route::middleware('permission:direct_purchases.view')->group(function () {
         Route::get('/direct-purchases', [DirectPurchaseController::class, 'index'])->name('direct-purchases.index');
-        Route::get('/direct-purchases/due', [DirectPurchaseController::class, 'due'])->name('direct-purchases.due');
-        Route::get('/direct-purchase-payments', [DirectPurchasePaymentController::class, 'index'])->name('direct-purchase-payments.index');
         Route::get('/direct-purchases/{purchase}', [DirectPurchaseController::class, 'show'])->name('direct-purchases.show');
     });
 

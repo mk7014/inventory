@@ -27,7 +27,6 @@ class DirectPurchaseController extends Controller
         }
 
         $query->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
-            ->when($request->filled('payment_type'), fn ($q) => $q->where('payment_type', $request->payment_type))
             ->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->employee_id))
             ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->supplier_id))
             ->when($request->filled('from'), fn ($q) => $q->whereDate('purchase_date', '>=', $request->from))
@@ -38,12 +37,18 @@ class DirectPurchaseController extends Controller
         if (! $request->user()->isAdmin()) {
             $statsBase->where('employee_id', $request->user()->id);
         }
+        // A purchase always comes off the buyer's wallet, so what the company still
+        // owes is simply however far balances have been driven below zero.
+        $owedQuery = User::query()->where('balance', '<', 0);
+        if (! $request->user()->isAdmin()) {
+            $owedQuery->whereKey($request->user()->id);
+        }
+
         $stats = [
             'total'       => (clone $statsBase)->count(),
             'total_value' => (float) (clone $statsBase)->where('status', 'approved')->sum('grand_total'),
             'pending'     => (clone $statsBase)->where('status', 'pending')->count(),
-            'total_due'   => (float) (clone $statsBase)->where('payment_type', 'due')->where('status', 'approved')
-                ->selectRaw('COALESCE(SUM(grand_total - paid_amount), 0) AS agg')->value('agg'),
+            'owed'        => abs((float) $owedQuery->sum('balance')),
         ];
 
         return view('direct-purchases.index', [
@@ -86,42 +91,7 @@ class DirectPurchaseController extends Controller
         abort_unless($request->user()->isAdmin() || $purchase->employee_id === $request->user()->id, 403);
 
         return view('direct-purchases.show', [
-            'purchase' => $purchase->load('employee', 'supplier', 'warehouse', 'approver', 'items.product', 'payments.paidBy'),
-        ]);
-    }
-
-    /**
-     * Due (out-of-pocket) purchase report — outstanding money the company owes
-     * employees, with running totals. Admin sees everyone; employees see their own.
-     */
-    public function due(Request $request): View
-    {
-        $query = DirectPurchase::query()
-            ->with(['employee', 'supplier'])
-            ->where('payment_type', 'due')
-            ->where('status', 'approved');
-
-        if (! $request->user()->isAdmin()) {
-            $query->where('employee_id', $request->user()->id);
-        }
-
-        $query->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->employee_id))
-            ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->supplier_id))
-            ->when($request->filled('outstanding'), fn ($q) => $q->whereColumn('paid_amount', '<', 'grand_total'));
-
-        $purchases = $query->latest('purchase_date')->paginate(20)->withQueryString();
-
-        $base = DirectPurchase::query()->where('payment_type', 'due')->where('status', 'approved');
-        if (! $request->user()->isAdmin()) {
-            $base->where('employee_id', $request->user()->id);
-        }
-
-        return view('direct-purchases.due', [
-            'purchases'    => $purchases,
-            'suppliers'    => Supplier::query()->orderBy('name')->get(),
-            'employees'    => $this->employeeOptions($request),
-            'totalDue'     => (float) $base->clone()->sum('grand_total'),
-            'totalPaid'    => (float) $base->clone()->sum('paid_amount'),
+            'purchase' => $purchase->load('employee', 'supplier', 'warehouse', 'approver', 'items.product'),
         ]);
     }
 

@@ -20,17 +20,6 @@
                        class="ppp-field">
             </div>
 
-            <div>
-                <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                    Payment Type <span class="text-red-400">*</span>
-                </label>
-                <select name="payment_type" id="paymentType" required
-                        class="ppp-field">
-                    <option value="advance" @selected(old('payment_type') === 'advance')>Advance (deduct from balance)</option>
-                    <option value="due" @selected(old('payment_type') === 'due')>Due (paid out of pocket)</option>
-                </select>
-            </div>
-
             @if($isAdmin)
             <div>
                 <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
@@ -81,13 +70,13 @@
             </div>
 
             <div class="sm:col-span-2 lg:col-span-1">
-                <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Employee Advance Balance</label>
+                <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Balance After Purchase</label>
                 <div id="balanceDisplay"
                      class="rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2.5 text-sm font-bold text-emerald-700">
                     ৳ {{ number_format($isAdmin ? 0 : (float) auth()->user()->balance, 2) }}
                 </div>
-                <p id="balanceWarn" class="mt-1 hidden text-[11px] font-semibold text-red-500">
-                    Grand total exceeds the available advance balance.
+                <p id="balanceHint" class="mt-1 text-[11px] text-slate-400">
+                    Deducted on approval. A negative balance is what the company owes back.
                 </p>
             </div>
         </div>
@@ -175,9 +164,14 @@
             return Number(opt.data('balance') || 0);
         }
 
-        function renderBalance() {
-            const bal = currentBalance();
-            $('#balanceDisplay').text(money(bal));
+        // Shows where the wallet lands once this purchase is approved. Going
+        // negative is allowed — it just means the company owes that much back.
+        function renderBalance(grand = 0) {
+            const after = currentBalance() - grand;
+            $('#balanceDisplay')
+                .text(money(after))
+                .toggleClass('border-emerald-100 bg-emerald-50/60 text-emerald-700', after >= 0)
+                .toggleClass('border-red-100 bg-red-50/60 text-red-600', after < 0);
         }
 
         function recalc() {
@@ -204,9 +198,7 @@
             $('#sumTax').text(money(tax));
             $('#sumGrand').text(money(grand));
 
-            // Advance-balance warning (informational — server enforces it too).
-            const isAdvance = $('#paymentType').val() === 'advance';
-            $('#balanceWarn').toggleClass('hidden', !(isAdvance && grand > currentBalance()));
+            renderBalance(grand);
         }
 
         function updateEmptyMsg() {
@@ -280,8 +272,7 @@
             recalc();
         });
 
-        $('#paymentType').on('change', recalc);
-        $('#employeeSelect').on('change', function () { renderBalance(); recalc(); });
+        $('#employeeSelect').on('change', recalc);
 
         $('#dpForm').on('submit', function (e) {
             if ($('#productTableBody .product-row').length === 0) {
@@ -291,7 +282,6 @@
         });
 
         // ── Init ──
-        renderBalance();
         addProductRow();
         recalc();
     </script>

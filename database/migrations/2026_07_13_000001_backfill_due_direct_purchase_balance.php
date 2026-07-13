@@ -2,17 +2,16 @@
 
 use App\Models\BalanceTransaction;
 use App\Models\DirectPurchase;
-use App\Models\DirectPurchasePayment;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Due direct purchases now hit the employee's wallet: approval debits the cost
- * (allowed to go negative — that negative IS the company's debt) and each
- * settlement payment credits it back. Purchases approved before that change carry
- * no ledger rows, so a later payment would credit a debit that never happened.
- * This replays both sides for them, in the order they originally occurred.
+ * Due direct purchases now hit the employee's wallet: approval debits the cost and
+ * is allowed to push the balance negative, because that negative IS the company's
+ * standing debt for money the employee spent out of pocket. Purchases approved
+ * before that change carry no ledger row at all, so this replays the debit for
+ * them and leaves the balance reduced.
  */
 return new class extends Migration
 {
@@ -20,7 +19,6 @@ return new class extends Migration
     {
         DB::transaction(function () {
             $purchases = DirectPurchase::query()
-                ->with('payments')
                 ->where('status', 'approved')
                 ->where('payment_type', 'due')
                 ->get();
@@ -53,21 +51,6 @@ return new class extends Migration
                     'note'           => 'Direct purchase '.$purchase->purchase_number.' (out of pocket)',
                     'created_by'     => $purchase->approved_by,
                 ]);
-
-                foreach ($purchase->payments->sortBy('created_at') as $payment) {
-                    $balance += (float) $payment->amount;
-
-                    BalanceTransaction::create([
-                        'user_id'        => $user->id,
-                        'type'           => 'credit_direct_purchase_settlement',
-                        'amount'         => (float) $payment->amount,
-                        'balance_after'  => $balance,
-                        'reference_type' => DirectPurchasePayment::class,
-                        'reference_id'   => $payment->id,
-                        'note'           => 'Settlement for direct purchase '.$purchase->purchase_number,
-                        'created_by'     => $payment->paid_by,
-                    ]);
-                }
 
                 $user->update(['balance' => $balance]);
             }

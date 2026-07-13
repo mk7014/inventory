@@ -30,16 +30,12 @@ class DirectPurchaseService
     public function create(array $data, User $employee, User $creator): DirectPurchase
     {
         return DB::transaction(function () use ($data, $employee, $creator) {
-            $paymentType = $data['payment_type'] === 'advance' ? 'advance' : 'due';
-
             $purchase = DirectPurchase::create([
                 'purchase_number'  => $this->nextNumber(),
                 'employee_id'      => $employee->id,
                 'supplier_id'      => $data['supplier_id'] ?? null,
                 'warehouse_id'     => $data['warehouse_id'] ?? null,
-                'payment_type'     => $paymentType,
                 'status'           => 'pending',
-                'payment_status'   => $paymentType === 'advance' ? 'paid' : 'due',
                 'purchase_date'    => $data['purchase_date'],
                 'invoice_number'   => $data['invoice_number'] ?? null,
                 'reference_number' => $data['reference_number'] ?? null,
@@ -96,12 +92,11 @@ class DirectPurchaseService
      * Approve a pending direct purchase: receive every line into stock using the
      * shared StockService and debit the cost from the employee's wallet.
      *
-     * Advance purchases spend company money already in the wallet, so the debit is
-     * capped at the available balance. Due purchases were paid out of the
-     * employee's own pocket, so the debit is allowed to push the wallet negative —
-     * a negative balance is exactly the company's outstanding debt, and it climbs
-     * back towards zero when the settlement payment credits it (see
-     * DirectPurchasePaymentService) or when the admin tops the wallet up.
+     * The debit is never blocked. If the wallet holds money the cost comes off it;
+     * if it does not, the wallet goes negative and stays there — a negative balance
+     * IS the company's standing debt for money the employee spent out of pocket. It
+     * clears by itself the next time the admin credits the wallet, since the credit
+     * absorbs the negative back towards zero.
      */
     public function approve(DirectPurchase $purchase, User $admin): DirectPurchase
     {
@@ -122,9 +117,9 @@ class DirectPurchaseService
                 (float) $locked->grand_total,
                 $locked,
                 $admin->id,
-                $locked->isAdvance() ? 'debit_direct_purchase' : 'debit_direct_purchase_due',
-                'Direct purchase '.$locked->purchase_number.($locked->isDue() ? ' (out of pocket)' : ''),
-                allowNegative: $locked->isDue(),
+                'debit_direct_purchase',
+                'Direct purchase '.$locked->purchase_number,
+                allowNegative: true,
             );
 
             $locked->update([

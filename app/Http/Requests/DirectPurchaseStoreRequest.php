@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class DirectPurchaseStoreRequest extends FormRequest
 {
@@ -18,7 +17,6 @@ class DirectPurchaseStoreRequest extends FormRequest
             'employee_id'          => ['nullable', 'exists:users,id'],
             'supplier_id'          => ['nullable', 'exists:suppliers,id'],
             'warehouse_id'         => ['nullable', 'exists:warehouses,id'],
-            'payment_type'         => ['required', Rule::in(['advance', 'due'])],
             'purchase_date'        => ['required', 'date'],
             'invoice_number'       => ['nullable', 'string', 'max:120'],
             'reference_number'     => ['nullable', 'string', 'max:120'],
