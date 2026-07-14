@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 
 class StockService
 {
@@ -30,6 +32,13 @@ class StockService
     {
         if ($quantity <= 0) {
             throw ValidationException::withMessages(['quantity' => 'Quantity must be greater than zero.']);
+        }
+
+        // Without a surrounding transaction, autocommit releases the row lock the instant
+        // the SELECT returns — lockForUpdate below would be a silent no-op and two callers
+        // could interleave their read-check-write. Fail loudly rather than corrupt stock.
+        if (DB::transactionLevel() === 0) {
+            throw new LogicException('StockService::move() must run inside a DB transaction; lockForUpdate() does nothing without one.');
         }
 
         $lockedProduct = Product::query()->whereKey($product->id)->lockForUpdate()->firstOrFail();
@@ -81,10 +90,13 @@ class StockService
                 $signedQuantity = $quantity;
         }
 
-        $lockedProduct->update([
+        // forceFill, because current_stock/booked_stock are deliberately NOT mass-assignable:
+        // this service is the only sanctioned writer, so nothing else can move stock without
+        // also writing the ledger row below.
+        $lockedProduct->forceFill([
             'current_stock' => $currentStock,
             'booked_stock' => $bookedStock,
-        ]);
+        ])->save();
 
         return StockMovement::create([
             'product_id' => $lockedProduct->id,

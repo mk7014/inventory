@@ -25,7 +25,9 @@ class User extends Authenticatable
         'avatar',
         'role_id',
         'status',
-        'balance',
+        // 'balance' is owned by BalanceService, which writes it with forceFill alongside
+        // a balance_transactions ledger row. Mass-assignment would let it drift from the
+        // ledger silently.
     ];
 
     /**

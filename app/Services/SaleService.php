@@ -38,6 +38,6 @@ class SaleService
             $this->auditService->record('sale.created', $sale, null, $sale->toArray());
 
             return $sale;
-        });
+        }, 3);
     }
 }

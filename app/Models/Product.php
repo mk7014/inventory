@@ -6,7 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
 {
-    protected $fillable = ['name', 'sku', 'image', 'default_purchase_price', 'current_stock', 'booked_stock'];
+    /**
+     * current_stock and booked_stock are intentionally absent: they are owned by
+     * StockService (which writes them with forceFill alongside a stock_movements
+     * ledger row). Mass-assigning them would let a plain $product->update() move
+     * stock with no ledger entry and no lock.
+     */
+    protected $fillable = ['name', 'sku', 'image', 'default_purchase_price'];
 
     protected function casts(): array
     {

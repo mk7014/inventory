@@ -45,27 +45,37 @@ class ExpenseService
             $this->auditService->record('expense.created', $expense, null, $expense->toArray());
 
             return $expense;
-        });
+        }, 3);
     }
 
     /**
      * Delete an expense and refund its amount back to the owner's balance.
+     *
+     * The row is re-fetched under lockForUpdate so two concurrent deletes cannot both
+     * refund it: the second request blocks on the lock, then finds the row already
+     * gone and returns without crediting. The delete IS the idempotency token.
      */
     public function remove(Expense $expense, User $actor): void
     {
         DB::transaction(function () use ($expense, $actor) {
+            $locked = Expense::query()->whereKey($expense->id)->lockForUpdate()->first();
+
+            if ($locked === null) {
+                return; // Already refunded and deleted by a concurrent request.
+            }
+
             $this->balanceService->credit(
-                $expense->user,
-                (float) $expense->amount,
-                $expense,
+                $locked->user,
+                (float) $locked->amount,
+                $locked,
                 $actor->id,
                 'credit_expense_refund',
-                'Refund — '.$expense->category.' — '.$expense->description,
+                'Refund — '.$locked->category.' — '.$locked->description,
             );
 
-            $this->auditService->record('expense.deleted', $expense, $expense->toArray(), null);
+            $this->auditService->record('expense.deleted', $locked, $locked->toArray(), null);
 
-            $expense->delete();
-        });
+            $locked->delete();
+        }, 3);
     }
 }

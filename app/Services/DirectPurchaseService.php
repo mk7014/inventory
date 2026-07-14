@@ -16,6 +16,7 @@ class DirectPurchaseService
         private StockService $stockService,
         private BalanceService $balanceService,
         private AuditService $auditService,
+        private SequenceService $sequenceService,
     ) {
     }
 
@@ -85,7 +86,7 @@ class DirectPurchaseService
             Notification::send($admins, new SystemNotification('New direct purchase submitted', route('direct-purchases.show', $purchase), 'direct_purchase'));
 
             return $purchase->load('items', 'supplier', 'warehouse', 'employee');
-        });
+        }, 3);
     }
 
     /**
@@ -107,7 +108,10 @@ class DirectPurchaseService
                 throw ValidationException::withMessages(['status' => 'Only pending direct purchases can be approved.']);
             }
 
-            foreach ($locked->items as $item) {
+            // Lock products in a deterministic global order (by product_id). Taking them
+            // in line-item order let two approvals sharing products grab them in opposite
+            // orders and deadlock each other.
+            foreach ($locked->items->sortBy('product_id') as $item) {
                 $product = Product::findOrFail($item->product_id);
                 $this->stockService->move($product, 'in_purchase', (int) $item->quantity, $item, $admin->id);
             }
@@ -132,7 +136,7 @@ class DirectPurchaseService
             $locked->employee->notify(new SystemNotification('Direct purchase approved', route('direct-purchases.show', $locked), 'direct_purchase'));
 
             return $locked->fresh(['items', 'employee', 'supplier', 'warehouse']);
-        });
+        }, 3);
     }
 
     /**
@@ -153,14 +157,11 @@ class DirectPurchaseService
             $locked->employee->notify(new SystemNotification('Direct purchase cancelled', route('direct-purchases.show', $locked), 'direct_purchase'));
 
             return $locked->fresh();
-        });
+        }, 3);
     }
 
     private function nextNumber(): string
     {
-        $date  = now()->format('Ymd');
-        $count = DirectPurchase::query()->whereDate('created_at', today())->lockForUpdate()->count() + 1;
-
-        return 'DP-'.$date.'-'.str_pad((string) $count, 4, '0', STR_PAD_LEFT);
+        return $this->sequenceService->next('DP');
     }
 }

@@ -76,7 +76,7 @@ class SaleStatusService
             );
 
             return $locked;
-        });
+        }, 3);
     }
 
     /**

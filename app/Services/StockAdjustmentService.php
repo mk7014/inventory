@@ -65,6 +65,6 @@ class StockAdjustmentService
             );
 
             return $adjustment;
-        });
+        }, 3);
     }
 }

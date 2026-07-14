@@ -68,7 +68,18 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Bluetooth Earbuds', 'sku' => 'EAR-BT-02', 'default_purchase_price' => 780, 'current_stock' => 2],
             ['name' => 'Laptop Stand', 'sku' => 'LAP-ST-03', 'default_purchase_price' => 550, 'current_stock' => 4],
             ['name' => 'Phone Charger 20W', 'sku' => 'CHR-20W-04', 'default_purchase_price' => 420, 'current_stock' => 0],
-        ])->map(fn ($row) => Product::query()->updateOrCreate(['sku' => $row['sku']], $row));
+        ])->map(function ($row) {
+            // current_stock is not mass-assignable (StockService owns it), so the opening
+            // balance is force-filled here rather than silently dropping to zero.
+            $product = Product::query()->updateOrCreate(
+                ['sku' => $row['sku']],
+                collect($row)->except('current_stock')->all(),
+            );
+
+            $product->forceFill(['current_stock' => $row['current_stock']])->save();
+
+            return $product;
+        });
 
         foreach ($products as $product) {
             if ($product->current_stock > 0) {

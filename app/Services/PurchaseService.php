@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +36,10 @@ class PurchaseService
                 throw ValidationException::withMessages(['item' => 'This item has already been purchased.']);
             }
 
-            $requisition = $locked->requisition;
+            // Lock the parent too: reading status off the eager-loaded (unlocked) row let a
+            // concurrent review un-approve the requisition between this check and the write.
+            $requisition = Requisition::query()->with('employee')
+                ->whereKey($locked->requisition_id)->lockForUpdate()->firstOrFail();
 
             if ($requisition->status !== 'approved') {
                 throw ValidationException::withMessages(['item' => 'Only items from approved requisitions can be purchased.']);
@@ -64,6 +68,6 @@ class PurchaseService
             $this->auditService->record('purchase.recorded', $locked, null, $locked->fresh()->toArray());
 
             return $locked->fresh();
-        });
+        }, 3);
     }
 }

@@ -24,6 +24,21 @@ class PaymentService
                 throw ValidationException::withMessages(['requisition_id' => 'Only approved requisitions can receive payment.']);
             }
 
+            // Total payments may never exceed the approved amount. Safe against races:
+            // the requisition is row-locked above and `payments` is loaded inside that
+            // lock, so a concurrent payment cannot slip in between the check and insert.
+            $approved = (float) $locked->approved_amount;
+            $alreadyPaid = (float) $locked->payments->sum('amount');
+            $remaining = round($approved - $alreadyPaid, 2);
+
+            if (round((float) $data['amount'], 2) > $remaining) {
+                throw ValidationException::withMessages([
+                    'amount' => $remaining <= 0
+                        ? 'This requisition is already fully paid.'
+                        : 'Payment exceeds the approved amount. Remaining: '.number_format($remaining, 2),
+                ]);
+            }
+
             $payment = Payment::create([
                 'requisition_id' => $locked->id,
                 'paid_to' => $locked->employee_id,
@@ -50,6 +65,6 @@ class PaymentService
             $locked->employee->notify(new SystemNotification('Payment recorded', route('requisitions.show', $locked), 'payment'));
 
             return $payment;
-        });
+        }, 3);
     }
 }

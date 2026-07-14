@@ -28,6 +28,22 @@ class StockAdjustmentTest extends TestCase
         ]);
     }
 
+    /**
+     * current_stock/booked_stock are not mass-assignable — StockService owns them — so
+     * opening stock is force-filled here, the same way the seeder does it.
+     */
+    private function product(int $currentStock = 0, int $bookedStock = 0): Product
+    {
+        $product = Product::create(['name' => 'Widget']);
+
+        $product->forceFill([
+            'current_stock' => $currentStock,
+            'booked_stock' => $bookedStock,
+        ])->save();
+
+        return $product;
+    }
+
     public function test_the_adjustment_page_renders(): void
     {
         $this->actingAs($this->admin())
@@ -40,7 +56,7 @@ class StockAdjustmentTest extends TestCase
     public function test_an_increase_adds_stock_and_writes_the_ledger(): void
     {
         $admin = $this->admin();
-        $product = Product::create(['name' => 'Widget', 'current_stock' => 4, 'booked_stock' => 0]);
+        $product = $this->product(4);
 
         $this->actingAs($admin)->post(route('stock-adjustments.store'), [
             'product_id' => $product->id,
@@ -66,7 +82,7 @@ class StockAdjustmentTest extends TestCase
     public function test_a_decrease_removes_stock(): void
     {
         $admin = $this->admin();
-        $product = Product::create(['name' => 'Widget', 'current_stock' => 10, 'booked_stock' => 0]);
+        $product = $this->product(10);
 
         $this->actingAs($admin)->post(route('stock-adjustments.store'), [
             'product_id' => $product->id,
@@ -83,7 +99,7 @@ class StockAdjustmentTest extends TestCase
     {
         $admin = $this->admin();
         // 6 on hand, 5 reserved for shipped orders → only 1 may be removed.
-        $product = Product::create(['name' => 'Widget', 'current_stock' => 6, 'booked_stock' => 5]);
+        $product = $this->product(6, 5);
 
         $this->actingAs($admin)->post(route('stock-adjustments.store'), [
             'product_id' => $product->id,
@@ -101,7 +117,7 @@ class StockAdjustmentTest extends TestCase
     public function test_a_reason_must_match_the_direction(): void
     {
         $admin = $this->admin();
-        $product = Product::create(['name' => 'Widget', 'current_stock' => 10, 'booked_stock' => 0]);
+        $product = $this->product(10);
 
         // "damaged" is a decrease-only reason.
         $this->actingAs($admin)->post(route('stock-adjustments.store'), [

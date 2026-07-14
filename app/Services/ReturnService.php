@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\SaleStatus;
 use App\Models\ProductReturn;
 use App\Models\Sale;
 use App\Models\User;
@@ -21,8 +22,16 @@ class ReturnService
         return DB::transaction(function () use ($sale, $data, $user) {
             $lockedSale = Sale::query()->with('product')->whereKey($sale->id)->lockForUpdate()->firstOrFail();
 
-            if ($lockedSale->status === 'returned') {
-                throw ValidationException::withMessages(['sale_id' => 'This sale is already returned.']);
+            // SaleStatus is the single source of truth: only a delivered sale can be
+            // returned. Without this, a pending sale (nothing ever shipped) would be
+            // restocked into existence, and a shipped one would be credited back while
+            // its reservation leaked — the goods had not left stock yet.
+            $current = SaleStatus::from($lockedSale->status);
+
+            if (! $current->canTransitionTo(SaleStatus::Returned)) {
+                throw ValidationException::withMessages([
+                    'sale_id' => 'A '.$current->label().' sale cannot be returned — only delivered sales can.',
+                ]);
             }
 
             if ((int) $data['quantity'] > $lockedSale->quantity) {
@@ -41,11 +50,12 @@ class ReturnService
                 'created_by' => $user->id,
             ]);
 
-            // Restock good-condition returns, but only once: the shared stock_state
-            // flag also stops the sales Action menu from restoring the same sale.
+            // Restock good-condition returns, but only goods that actually left stock:
+            // stock_state is 'delivered' exactly once out_sale has run. The flag also
+            // stops the sales Action menu from restoring the same sale twice.
             $restock = $return->condition === 'good'
                 && $lockedSale->affectsStock()
-                && $lockedSale->stock_state !== 'returned';
+                && $lockedSale->stock_state === 'delivered';
 
             if ($restock) {
                 $this->stockService->move($lockedSale->product, 'in_return', $return->quantity, $return, $user->id);
@@ -65,6 +75,6 @@ class ReturnService
             Notification::send($admins, new SystemNotification('Product return recorded', route('returns.index'), 'return'));
 
             return $return;
-        });
+        }, 3);
     }
 }

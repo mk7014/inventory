@@ -12,8 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 class RequisitionService
 {
-    public function __construct(private AuditService $auditService)
-    {
+    public function __construct(
+        private AuditService $auditService,
+        private SequenceService $sequenceService,
+    ) {
     }
 
     public function create(array $data, User $employee): Requisition
@@ -63,7 +65,7 @@ class RequisitionService
             Notification::send($admins, new SystemNotification('New requisition submitted', route('requisitions.show', $requisition), 'requisition'));
 
             return $requisition->load('items.product', 'items.account');
-        });
+        }, 3);
     }
 
     public function review(Requisition $requisition, string $status, ?float $approvedAmount, ?string $note, User $admin): Requisition
@@ -95,14 +97,11 @@ class RequisitionService
             $locked->employee->notify(new SystemNotification('Requisition '.$status, route('requisitions.show', $locked), 'requisition'));
 
             return $locked->fresh(['items.product', 'items.account', 'employee']);
-        });
+        }, 3);
     }
 
     private function nextNumber(): string
     {
-        $date = now()->format('Ymd');
-        $count = Requisition::query()->whereDate('created_at', today())->lockForUpdate()->count() + 1;
-
-        return 'REQ-'.$date.'-'.str_pad((string) $count, 4, '0', STR_PAD_LEFT);
+        return $this->sequenceService->next('REQ');
     }
 }
