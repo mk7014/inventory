@@ -2,47 +2,57 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\DarazAccount;
-use App\Models\Payment;
-use App\Models\Product;
-use App\Models\ProductReturn;
 use App\Models\Requisition;
-use App\Models\Sale;
+use App\Services\DashboardService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    public function __construct(private DashboardService $dashboard)
+    {
+    }
+
     public function __invoke(Request $request): View
     {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
+        $from = Carbon::parse($validated['from'] ?? now()->startOfMonth())->startOfDay();
+        $to = Carbon::parse($validated['to'] ?? now())->endOfDay();
+
         $user = $request->user();
-        $monthStart = now()->startOfMonth();
-        $monthEnd = now()->endOfMonth();
 
-        $requisitionQuery = Requisition::query();
-        if (! $user->isAdmin()) {
-            $requisitionQuery->where('employee_id', $user->id);
-        }
+        // Admins see the company-wide picture; anyone else sees their own wallet
+        // figures (sales and profit stay company-wide — they are not per-employee).
+        $employeeId = $user->isAdmin() ? null : $user->id;
 
-        $summary = [
-            'pending_amount' => (clone $requisitionQuery)->where('status', 'pending')->whereBetween('requested_at', [$monthStart, $monthEnd])->sum('total_amount'),
-            'pending_count' => (clone $requisitionQuery)->where('status', 'pending')->count(),
-            'paid_amount' => Payment::query()->whereBetween('payment_date', [$monthStart, $monthEnd])->sum('amount'),
-            'sales_revenue' => Sale::query()->where('status', 'delivered')->whereBetween('sold_date', [$monthStart, $monthEnd])->selectRaw('COALESCE(SUM(selling_price * quantity), 0) as total')->value('total'),
-            'stock_count' => Product::query()->sum('current_stock'),
-            'returns_count' => ProductReturn::query()->whereBetween('return_date', [$monthStart, $monthEnd])->count(),
-        ];
-        $summary['net_profit'] = $summary['sales_revenue'] - $summary['paid_amount'];
+        $data = $this->dashboard->overview($from, $to, $employeeId);
 
-        $accounts = DarazAccount::query()
-            ->withCount(['sales as completed_sales_count' => fn ($query) => $query->where('status', 'delivered')])
-            ->orderBy('account_name')
-            ->get();
+        $recentRequisitions = Requisition::query()
+            ->with('employee:id,name')
+            ->when($employeeId, fn ($query) => $query->where('employee_id', $employeeId))
+            ->latest()
+            ->limit(6)
+            ->get(['id', 'requisition_number', 'employee_id', 'status', 'total_amount', 'requested_at']);
 
-        $recentRequisitions = (clone $requisitionQuery)->with('employee')->latest()->limit(8)->get();
-        $lowStockProducts = Product::query()->where('current_stock', '<=', 3)->orderBy('current_stock')->limit(8)->get();
-        $statusChart = Requisition::query()->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
-
-        return view('dashboard.index', compact('summary', 'accounts', 'recentRequisitions', 'lowStockProducts', 'statusChart'));
+        return view('dashboard.index', [
+            'from' => $from,
+            'to' => $to,
+            'isAdmin' => $user->isAdmin(),
+            'funds' => $data['funds'],
+            'spend' => $data['spend'],
+            'expenseCategories' => $data['expenseCategories'],
+            'sales' => $data['sales'],
+            'delivered' => $data['delivered'],
+            'profit' => $data['profit'],
+            'trend' => $data['trend'],
+            'salesTrend' => $data['salesTrend'],
+            'lowStock' => $data['lowStock'],
+            'recentRequisitions' => $recentRequisitions,
+        ]);
     }
 }
