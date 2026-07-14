@@ -52,6 +52,9 @@ return new class extends Migration
         Schema::dropIfExists('direct_purchase_payments');
 
         Schema::table('direct_purchases', function (Blueprint $table) {
+            // payment_status was indexed; SQLite rejects the leftover index on a
+            // drop-column, so the index has to be removed first.
+            $table->dropIndex('direct_purchases_payment_status_index');
             $table->dropColumn(['paid_amount', 'payment_status']);
         });
     }

@@ -71,6 +71,10 @@ return new class extends Migration
             DB::table('users')->whereNull('role_id')->update(['role_id' => $roleIds['employee']]);
 
             Schema::table('users', function (Blueprint $table) {
+                // The legacy column was created with ->index(); SQLite leaves that
+                // index behind on a drop-column and then rejects it as dangling,
+                // so it has to go first.
+                $table->dropIndex('users_role_index');
                 $table->dropColumn('role');
             });
         }

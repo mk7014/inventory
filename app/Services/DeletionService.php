@@ -15,6 +15,7 @@ use App\Models\RequisitionExpense;
 use App\Models\RequisitionItem;
 use App\Models\Sale;
 use App\Models\SaleStatusHistory;
+use App\Models\StockAdjustment;
 use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\Warehouse;
@@ -93,6 +94,7 @@ class DeletionService
             ProductReturn::where('product_id', $product->id)->update(['product_id' => null]);
             SaleStatusHistory::where('product_id', $product->id)->update(['product_id' => null]);
             StockMovement::where('product_id', $product->id)->update(['product_id' => null]);
+            StockAdjustment::where('product_id', $product->id)->update(['product_id' => null]);
             RequisitionItem::where('product_id', $product->id)->update(['product_id' => null]);
 
             // Direct-purchase line items require a product, so they must go.

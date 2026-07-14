@@ -19,6 +19,8 @@ class StockService
      *   - release                 : cancel a reservation            (booked_stock -qty)
      *   - out_sale                : ship out delivered goods        (current_stock -qty,
      *                               also clears the matching reservation)
+     *   - adjust_in               : manual admin correction up      (+qty)
+     *   - adjust_out              : manual admin correction down    (-qty)
      *
      * Available stock (current_stock − booked_stock) is never allowed to go
      * negative on a reservation, and current_stock is never allowed to go
@@ -60,7 +62,21 @@ class StockService
                 $signedQuantity = -$quantity;
                 break;
 
-            default: // in_purchase, in_return — additive restocks
+            case 'adjust_out':
+                // A manual reduction may only eat into stock that is not already
+                // reserved for a shipped order, otherwise available stock would
+                // go negative and those orders could no longer be fulfilled.
+                if ($currentStock - $quantity < $bookedStock) {
+                    throw ValidationException::withMessages([
+                        'quantity' => 'Cannot remove '.$quantity.' unit(s). Only '.($currentStock - $bookedStock)
+                            .' of the '.$currentStock.' in stock are free — the rest is booked for shipped orders.',
+                    ]);
+                }
+                $currentStock -= $quantity;
+                $signedQuantity = -$quantity;
+                break;
+
+            default: // in_purchase, in_return, adjust_in — additive restocks
                 $currentStock += $quantity;
                 $signedQuantity = $quantity;
         }

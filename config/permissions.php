@@ -80,6 +80,13 @@ return [
             'actions' => ['view', 'export'],
             'menu'    => ['route' => 'reports.index', 'label' => 'Reports', 'parent' => 'Inventory'],
         ],
+        'stock_adjustments' => [
+            'label'   => 'Stock Adjustment',
+            'group'   => 'Administration',
+            // Append-only ledger — corrections are posted, never edited or deleted.
+            'actions' => ['view', 'create'],
+            'menu'    => ['route' => 'stock-adjustments.index', 'label' => 'Stock Adjustment', 'parent' => 'Admin Panel'],
+        ],
         'suppliers' => [
             'label'   => 'Suppliers',
             'group'   => 'Administration',

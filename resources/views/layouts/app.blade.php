@@ -62,7 +62,7 @@
                     $dashActive  = request()->routeIs('dashboard');
                     $opsActive   = request()->routeIs('requisitions.*','direct-purchases.*','payments.*','sales.*','returns.*');
                     $invActive   = request()->routeIs('products.*','reports.*');
-                    $adminActive = request()->routeIs('accounts.*','suppliers.*','warehouses.*','users.*','roles.*','balances.*');
+                    $adminActive = request()->routeIs('accounts.*','suppliers.*','warehouses.*','users.*','roles.*','balances.*','stock-adjustments.*');
                 @endphp
 
                 @can('dashboard.view')
@@ -249,7 +249,7 @@
                 @endcanany
 
                 {{-- ── Admin Panel (accordion) ─────────────────────── --}}
-                @canany(['accounts.view','suppliers.view','warehouses.view','users.view','roles.view','balances.view'])
+                @canany(['accounts.view','suppliers.view','warehouses.view','users.view','roles.view','balances.view','stock_adjustments.view'])
                 <div class="nav-group {{ $adminActive ? 'open' : '' }}">
                     <button class="nav-parent-btn">
                         <span class="nav-icon-wrap">
@@ -269,6 +269,17 @@
                     </button>
                     <div class="nav-submenu">
                         <div class="pl-3 pt-1 pb-1 space-y-0.5">
+                            @can('stock_adjustments.view')
+                            <a href="{{ route('stock-adjustments.index') }}"
+                               class="nav-child {{ request()->routeIs('stock-adjustments.*') ? 'nav-child-active' : '' }}">
+                                <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+                                     stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M12 6v6m0 0v6m0-6h6m-6 0H6M3 12a9 9 0 1018 0 9 9 0 00-18 0z"/>
+                                </svg>
+                                Stock Adjustment
+                            </a>
+                            @endcan
                             @can('accounts.view')
                             <a href="{{ route('accounts.index') }}"
                                class="nav-child {{ request()->routeIs('accounts.*') ? 'nav-child-active' : '' }}">

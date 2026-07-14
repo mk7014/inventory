@@ -18,6 +18,7 @@ use App\Http\Controllers\RequisitionReviewController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SaleController;
+use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WarehouseController;
@@ -126,6 +127,14 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->post('/products', [ProductController::class, 'store'])->name('products.store');
     Route::middleware('permission:products.update')
         ->put('/products/{product}', [ProductController::class, 'update'])->name('products.update');
+
+    // ── Stock Adjustments (manual increase / decrease) ──────────────
+    // Append-only: a mistake is corrected with an opposite adjustment, never by
+    // editing or deleting a past one, so the stock ledger stays auditable.
+    Route::middleware('permission:stock_adjustments.view')
+        ->get('/stock-adjustments', [StockAdjustmentController::class, 'index'])->name('stock-adjustments.index');
+    Route::middleware('permission:stock_adjustments.create')
+        ->post('/stock-adjustments', [StockAdjustmentController::class, 'store'])->name('stock-adjustments.store');
 
     // ── Reports ─────────────────────────────────────────────────────
     Route::middleware('permission:reports.view')
