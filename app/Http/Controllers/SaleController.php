@@ -63,7 +63,14 @@ class SaleController extends Controller
 
     public function updateStatus(SaleStatusUpdateRequest $request, Sale $sale, SaleStatusService $service): RedirectResponse
     {
-        $sale = $service->transition($sale, $request->validated('status'), $request->user());
+        // Admins may set any status, so a mistake (a sale a user cancelled by accident,
+        // say) can be repaired. Everyone else stays on the state machine's rails.
+        $sale = $service->transition(
+            $sale,
+            $request->validated('status'),
+            $request->user(),
+            $request->user()->isAdmin(),
+        );
 
         return back()->with('success', 'Sale status updated to '.$sale->statusEnum()->label().'.');
     }
@@ -79,10 +86,16 @@ class SaleController extends Controller
     {
         $product = Product::findOrFail($request->integer('product_id'));
 
+        $sellable = $product->sellableStock();
+
         return response()->json([
             'stock' => $product->current_stock,
             'available' => $product->availableStock(),
             'booked' => $product->booked_stock,
+            // What a new from-stock sale is actually allowed to take: available minus
+            // the units open sales already claim. Mirrors SaleService::assertSellable.
+            'sellable' => $sellable,
+            'claimed' => $product->availableStock() - $sellable,
             'name' => $product->name,
         ]);
     }

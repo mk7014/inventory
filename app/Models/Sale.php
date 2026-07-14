@@ -3,10 +3,33 @@
 namespace App\Models;
 
 use App\Enums\SaleStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Sale extends Model
 {
+    /**
+     * Open from-stock sales for a product whose units are spoken for but not yet
+     * reserved: a sale only books stock on Shipped, so a Pending one holds no
+     * booked_stock at all. Availability checks must subtract these too, otherwise
+     * two Pending sales can be written against the same single unit.
+     *
+     * Cancelled is excluded by status, not by stock_state: a sale cancelled while
+     * still Pending never reserved anything, so its stock_state stays 'none'.
+     */
+    public function scopeOpenUnreserved(Builder $query, int $productId): Builder
+    {
+        return $query
+            ->where('product_id', $productId)
+            ->where('source', 'stock')
+            ->where('stock_state', 'none')
+            ->whereNotIn('status', [
+                SaleStatus::Delivered->value,
+                SaleStatus::Returned->value,
+                SaleStatus::Cancelled->value,
+            ]);
+    }
+
     protected $fillable = [
         'daraz_account_id',
         'product_id',

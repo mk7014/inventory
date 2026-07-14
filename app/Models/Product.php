@@ -33,6 +33,17 @@ class Product extends Model
     }
 
     /**
+     * Units still open for a NEW from-stock sale: on-hand, minus what is reserved
+     * for shipped orders, minus what is already promised to open sales that have
+     * not reached Shipped yet (see Sale::scopeOpenUnreserved). This — not
+     * availableStock() — is what a new sale must be checked against.
+     */
+    public function sellableStock(): int
+    {
+        return $this->availableStock() - (int) Sale::query()->openUnreserved($this->id)->sum('quantity');
+    }
+
+    /**
      * Public URL for the uploaded product image, or null to fall back to a
      * placeholder. Built with asset() so it honours the serving host.
      */
