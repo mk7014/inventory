@@ -302,29 +302,85 @@
                         <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                             Adjustment Type <span class="text-rose-400">*</span>
                         </label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <label class="type-opt cursor-pointer">
-                                <input type="radio" name="type" value="increase" class="peer sr-only"
+                        <div class="grid grid-cols-2 gap-3">
+
+                            <label class="group relative cursor-pointer">
+                                <input type="radio" name="type" value="increase" class="sr-only"
                                        @checked(old('type', 'increase') === 'increase')>
-                                <div class="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white
-                                            px-3 py-2.5 text-[13px] font-semibold text-slate-500 transition
-                                            peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-700">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-                                    </svg>
-                                    Increase
+
+                                <div class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-3.5
+                                            shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 ease-out
+                                            group-hover:-translate-y-0.5 group-hover:border-emerald-200 group-hover:shadow-md
+                                            group-has-checked:-translate-y-0.5 group-has-checked:border-emerald-500
+                                            group-has-checked:shadow-[0_8px_20px_-8px_rgba(16,185,129,0.55)]
+                                            group-has-focus-visible:ring-2 group-has-focus-visible:ring-emerald-500/40">
+
+                                    {{-- Tint wash, only once the option is picked --}}
+                                    <span class="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200
+                                                 group-has-checked:opacity-100"
+                                          style="background:linear-gradient(135deg,rgba(16,185,129,0.12) 0%,rgba(255,255,255,0) 70%);"></span>
+
+                                    {{-- Selected tick --}}
+                                    <span class="absolute right-2.5 top-2.5 flex h-4 w-4 scale-50 items-center justify-center
+                                                 rounded-full bg-emerald-500 text-white opacity-0 transition-all duration-200
+                                                 group-has-checked:scale-100 group-has-checked:opacity-100">
+                                        <svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                    </span>
+
+                                    <span class="relative flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-400
+                                                 transition-all duration-200 group-hover:bg-emerald-50 group-hover:text-emerald-500
+                                                 group-has-checked:bg-emerald-500 group-has-checked:text-white
+                                                 group-has-checked:shadow-[0_4px_10px_-2px_rgba(16,185,129,0.6)]">
+                                        <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5m0 0l-6 6m6-6l6 6"/>
+                                        </svg>
+                                    </span>
+
+                                    <p class="relative mt-2.5 text-[13px] font-bold text-slate-600 transition-colors
+                                              group-has-checked:text-emerald-700">Increase</p>
+                                    <p class="relative mt-0.5 text-[11px] font-medium text-slate-400 transition-colors
+                                              group-has-checked:text-emerald-600/80">Add units to stock</p>
                                 </div>
                             </label>
-                            <label class="type-opt cursor-pointer">
-                                <input type="radio" name="type" value="decrease" class="peer sr-only"
+
+                            <label class="group relative cursor-pointer">
+                                <input type="radio" name="type" value="decrease" class="sr-only"
                                        @checked(old('type') === 'decrease')>
-                                <div class="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white
-                                            px-3 py-2.5 text-[13px] font-semibold text-slate-500 transition
-                                            peer-checked:border-rose-500 peer-checked:bg-rose-50 peer-checked:text-rose-700">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"/>
-                                    </svg>
-                                    Decrease
+
+                                <div class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-3.5
+                                            shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 ease-out
+                                            group-hover:-translate-y-0.5 group-hover:border-rose-200 group-hover:shadow-md
+                                            group-has-checked:-translate-y-0.5 group-has-checked:border-rose-500
+                                            group-has-checked:shadow-[0_8px_20px_-8px_rgba(244,63,94,0.55)]
+                                            group-has-focus-visible:ring-2 group-has-focus-visible:ring-rose-500/40">
+
+                                    <span class="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200
+                                                 group-has-checked:opacity-100"
+                                          style="background:linear-gradient(135deg,rgba(244,63,94,0.12) 0%,rgba(255,255,255,0) 70%);"></span>
+
+                                    <span class="absolute right-2.5 top-2.5 flex h-4 w-4 scale-50 items-center justify-center
+                                                 rounded-full bg-rose-500 text-white opacity-0 transition-all duration-200
+                                                 group-has-checked:scale-100 group-has-checked:opacity-100">
+                                        <svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                    </span>
+
+                                    <span class="relative flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-400
+                                                 transition-all duration-200 group-hover:bg-rose-50 group-hover:text-rose-500
+                                                 group-has-checked:bg-rose-500 group-has-checked:text-white
+                                                 group-has-checked:shadow-[0_4px_10px_-2px_rgba(244,63,94,0.6)]">
+                                        <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m0 0l6-6m-6 6l-6-6"/>
+                                        </svg>
+                                    </span>
+
+                                    <p class="relative mt-2.5 text-[13px] font-bold text-slate-600 transition-colors
+                                              group-has-checked:text-rose-700">Decrease</p>
+                                    <p class="relative mt-0.5 text-[11px] font-medium text-slate-400 transition-colors
+                                              group-has-checked:text-rose-600/80">Remove units from stock</p>
                                 </div>
                             </label>
                         </div>

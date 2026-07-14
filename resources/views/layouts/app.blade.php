@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? 'Daraz Manager' }}</title>
+    <title>{{ $title ?? 'eCom Inventory' }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -47,7 +47,7 @@
                 </div>
                 <div class="min-w-0">
                     <p class="text-[13px] font-bold leading-none tracking-wide text-white">
-                        Daraz Manager
+                        eCom Inventory
                     </p>
                     <p class="mt-0.5 text-[10px] font-medium" style="color:rgba(52,211,153,0.6);">
                         Smart IT Solution
@@ -415,7 +415,7 @@
                           d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
             </button>
-            <span class="text-sm font-semibold text-[#17211c]">{{ $title ?? 'Daraz Manager' }}</span>
+            <span class="text-sm font-semibold text-[#17211c]">{{ $title ?? 'eCom Inventory' }}</span>
         </header>
 
         <div class="page-fade mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
