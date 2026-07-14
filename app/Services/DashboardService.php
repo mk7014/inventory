@@ -67,6 +67,8 @@ class DashboardService
                 'expenseCategories' => $this->expenseCategories($from, $to, $employeeId),
                 'sales' => $sales,
                 'delivered' => $this->delivered($from, $to, $sales['orders'], $sales['quantity']),
+                'pendingDelivery' => $this->pendingDelivery($from, $to),
+                'pipeline' => $this->pipeline(),
                 'returns' => $this->returns($from, $to, $profit['gross_sales']),
                 'profit' => $profit,
                 'trend' => $this->monthlyTrend(),
@@ -165,9 +167,15 @@ class DashboardService
             'cost' => $this->costDetails($from, $to),
             'returns' => $this->returnDetails($from, $to),
             'orders' => $this->orderDetails($from, $to, $status),
+            'pending_delivery' => $this->orderDetails($from, $to, null, self::AWAITING_DELIVERY),
             'funds' => $this->ledgerDetails($from, $to, $employeeId, credits: true),
             'spend' => $this->ledgerDetails($from, $to, $employeeId, credits: false),
             'expenses' => $this->expenseDetails($from, $to, $employeeId),
+            'requested' => $this->requisitionLineDetails(null),
+            'awaiting_purchase' => $this->requisitionLineDetails(false),
+            'purchased' => $this->purchasedDetails(),
+            'sold' => $this->soldDetails(),
+            'stock' => $this->stockDetails(),
             default => throw new InvalidArgumentException('Unknown metric: '.$metric),
         };
     }
@@ -216,35 +224,48 @@ class DashboardService
         ];
     }
 
-    /** Every order in one status — what "12 pending orders" actually consists of. */
-    private function orderDetails(Carbon $from, Carbon $to, ?string $status): array
+    /**
+     * Every order in one status — what "12 pending orders" actually consists of.
+     *
+     * @param  array<string>|null  $statuses  several statuses at once (e.g. "not delivered yet")
+     */
+    private function orderDetails(Carbon $from, Carbon $to, ?string $status, ?array $statuses = null): array
     {
-        $label = $status ? (SaleStatus::tryFrom($status)?->label() ?? ucfirst($status)) : 'All';
+        $label = match (true) {
+            $statuses !== null => 'Waiting to Be Delivered',
+            $status !== null => (SaleStatus::tryFrom($status)?->label() ?? ucfirst($status)).' Orders',
+            default => 'All Orders',
+        };
 
         $rows = $this->salesQuery()
             ->leftJoin('daraz_accounts', 'daraz_accounts.id', '=', 'sales.daraz_account_id')
             ->when($status, fn ($query) => $query->where('sales.status', $status))
+            ->when($statuses, fn ($query) => $query->whereIn('sales.status', $statuses))
             ->whereBetween('sales.sold_date', $this->bounds($from, $to))
             ->orderByDesc('sales.sold_date')
             ->limit(200)
             ->get([
-                'sales.sold_date', 'sales.product_name', 'sales.quantity',
+                'sales.sold_date', 'sales.product_name', 'sales.status', 'sales.quantity',
                 'sales.returned_quantity', 'sales.selling_price', 'daraz_accounts.account_name',
                 DB::raw('sales.selling_price * sales.quantity as line_total'),
             ]);
 
         return [
-            'title' => $label.' Orders',
-            'subtitle' => $status === SaleStatus::Returned->value
-                ? 'These orders came back. The "Kept" column is what the customer did not send back — that part is still your money.'
-                : 'Every order with this status in the selected period.',
-            'columns' => ['Date', 'Product', 'Shop', 'Qty', 'Returned', 'Order value'],
+            'title' => $label,
+            'subtitle' => match (true) {
+                $statuses !== null => 'Orders the customer has not received yet. Cancelled and returned orders are not here — those are finished.',
+                $status === SaleStatus::Returned->value => 'These orders came back. Anything the customer did NOT send back is still your money.',
+                default => 'Every order with this status in the selected period.',
+            },
+            'columns' => ['Date', 'Product', 'Shop', 'Status', 'Qty', 'Order value'],
             'rows' => $rows->map(fn ($row) => [
                 Carbon::parse($row->sold_date)->format('d M Y'),
                 $row->product_name,
                 $row->account_name ?? '—',
-                (string) $row->quantity,
-                $row->returned_quantity > 0 ? (string) $row->returned_quantity : '—',
+                SaleStatus::tryFrom($row->status)?->label() ?? ucfirst($row->status),
+                $row->returned_quantity > 0
+                    ? $row->quantity.' ('.$row->returned_quantity.' back)'
+                    : (string) $row->quantity,
                 $this->taka($row->line_total),
             ])->all(),
             'total' => round((float) $rows->sum('line_total'), 2),
@@ -252,36 +273,193 @@ class DashboardService
         ];
     }
 
-    /** The delivered orders that make up sales income. */
-    private function revenueDetails(Carbon $from, Carbon $to): array
+    /**
+     * Product lines on requisitions.
+     *
+     * @param  bool|null  $purchased  null = all lines, false = only the ones still waiting
+     */
+    private function requisitionLineDetails(?bool $purchased): array
     {
-        $rows = $this->salesQuery()
+        $rows = VoidedUsers::exclude(
+            DB::table('requisition_items')
+                ->join('requisitions', 'requisitions.id', '=', 'requisition_items.requisition_id')
+                ->join('users', 'users.id', '=', 'requisitions.employee_id')
+                ->where('requisition_items.item_type', 'product')
+                ->whereNotIn('requisitions.status', ['rejected'])
+                ->when($purchased === false, fn ($query) => $query->whereNull('requisition_items.purchased_at')),
+            'requisitions.employee_id',
+        )
+            ->orderByDesc('requisitions.requested_at')
+            ->limit(200)
+            ->get([
+                'requisitions.requisition_number', 'requisitions.status as req_status',
+                'requisition_items.product_name', 'requisition_items.quantity',
+                'requisition_items.purchase_price', 'requisition_items.purchased_at',
+                'requisition_items.subtotal', 'users.name as employee',
+            ]);
+
+        return [
+            'title' => $purchased === false ? 'Requested — Not Bought Yet' : 'All Requested Products',
+            'subtitle' => $purchased === false
+                ? 'Staff asked for these products, and nobody has bought them yet. This is your to-do list.'
+                : 'Every product staff have asked for on a requisition (rejected requisitions are not counted).',
+            'columns' => ['Requisition', 'Staff', 'Product', 'Qty', 'Status', 'Value'],
+            'rows' => $rows->map(fn ($row) => [
+                $row->requisition_number,
+                $row->employee,
+                $row->product_name ?? '—',
+                (string) $row->quantity,
+                $row->purchased_at
+                    ? 'Bought '.Carbon::parse($row->purchased_at)->format('d M Y')
+                    : 'Waiting to be bought',
+                $this->taka($row->subtotal),
+            ])->all(),
+            'total' => round((float) $rows->sum('subtotal'), 2),
+            'total_label' => $purchased === false ? 'Value still to buy' : 'Total requested value',
+        ];
+    }
+
+    /** Everything actually bought — through a requisition, or bought directly. */
+    private function purchasedDetails(): array
+    {
+        $viaRequisition = VoidedUsers::exclude(
+            DB::table('requisition_items')
+                ->join('requisitions', 'requisitions.id', '=', 'requisition_items.requisition_id')
+                ->where('requisition_items.item_type', 'product')
+                ->whereNotNull('requisition_items.purchased_at'),
+            'requisitions.employee_id',
+        )->get([
+            DB::raw("'Requisition' as source"),
+            'requisitions.requisition_number as reference',
+            'requisition_items.product_name', 'requisition_items.quantity',
+            'requisition_items.subtotal as value',
+            'requisition_items.purchased_at as bought_at',
+        ]);
+
+        $direct = VoidedUsers::exclude(
+            DB::table('direct_purchase_items')
+                ->join('direct_purchases', 'direct_purchases.id', '=', 'direct_purchase_items.direct_purchase_id')
+                ->where('direct_purchases.status', 'approved'),
+            'direct_purchases.employee_id',
+        )->get([
+            DB::raw("'Direct purchase' as source"),
+            'direct_purchases.purchase_number as reference',
+            'direct_purchase_items.product_name', 'direct_purchase_items.quantity',
+            'direct_purchase_items.line_total as value',
+            'direct_purchases.approved_at as bought_at',
+        ]);
+
+        $rows = $viaRequisition->concat($direct)->sortByDesc('bought_at')->take(200);
+
+        return [
+            'title' => 'Products Bought',
+            'subtitle' => 'Goods that were actually purchased and came into stock — either through a requisition, or bought directly from a supplier.',
+            'columns' => ['Bought on', 'How', 'Reference', 'Product', 'Qty', 'Cost'],
+            'rows' => $rows->map(fn ($row) => [
+                $row->bought_at ? Carbon::parse($row->bought_at)->format('d M Y') : '—',
+                $row->source,
+                $row->reference,
+                $row->product_name ?? '—',
+                (string) $row->quantity,
+                $this->taka($row->value),
+            ])->values()->all(),
+            'total' => round((float) $rows->sum('value'), 2),
+            'total_label' => 'Total spent on goods',
+        ];
+    }
+
+    /** All-time units the customer kept — matches the pipeline tile, which has no date filter. */
+    private function soldDetails(): array
+    {
+        return $this->keptSalesDetails(
+            null,
+            null,
+            'Products Sold',
+            'Units the customer received AND kept, across all time. Anything sent back is excluded — those goods are on your shelf again.',
+        );
+    }
+
+    /** What is still sitting on the shelf, and what it is worth. */
+    private function stockDetails(): array
+    {
+        $rows = DB::table('products')
+            ->leftJoinSub($this->productCostQuery(), 'costs', 'costs.product_id', '=', 'products.id')
+            ->orderByDesc('products.current_stock')
+            ->limit(200)
+            ->get([
+                'products.name', 'products.sku', 'products.current_stock', 'products.booked_stock',
+                DB::raw('COALESCE(costs.unit_cost, products.default_purchase_price, 0) as unit_cost'),
+                DB::raw('products.current_stock * COALESCE(costs.unit_cost, products.default_purchase_price, 0) as value'),
+            ]);
+
+        return [
+            'title' => 'Stock On Hand',
+            'subtitle' => 'What is left in the warehouse after everything you sold. "Reserved" units are already promised to a shipped order — they are on the shelf but not free to sell.',
+            'columns' => ['Product', 'SKU', 'In stock', 'Reserved', 'Cost each', 'Stock value'],
+            'rows' => $rows->map(fn ($row) => [
+                $row->name,
+                $row->sku ?: '—',
+                (string) $row->current_stock,
+                $row->booked_stock > 0 ? (string) $row->booked_stock : '—',
+                $this->taka($row->unit_cost),
+                $this->taka($row->value),
+            ])->all(),
+            'total' => round((float) $rows->sum('value'), 2),
+            'total_label' => 'Total stock value',
+        ];
+    }
+
+    /**
+     * The orders behind "money you kept".
+     *
+     * Must value each order at what the customer KEPT (quantity − returned_quantity),
+     * not at the full order value — otherwise a partial return would make this drill-down
+     * disagree with the card it is supposed to explain.
+     *
+     * @param  Carbon|null  $from  null = no date filter (used by the all-time pipeline tile)
+     */
+    private function keptSalesDetails(?Carbon $from, ?Carbon $to, string $title, string $subtitle): array
+    {
+        $rows = $this->fulfilledSales()
             ->leftJoin('daraz_accounts', 'daraz_accounts.id', '=', 'sales.daraz_account_id')
-            ->where('sales.status', SaleStatus::Delivered->value)
-            ->whereBetween('sales.sold_date', $this->bounds($from, $to))
+            ->whereRaw('sales.quantity - sales.returned_quantity > 0')
+            ->when($from && $to, fn ($query) => $query->whereBetween('sales.sold_date', $this->bounds($from, $to)))
             ->orderByDesc('sales.sold_date')
             ->limit(200)
             ->get([
                 'sales.sold_date', 'sales.product_name', 'sales.quantity',
-                'sales.selling_price', 'daraz_accounts.account_name',
-                DB::raw('sales.selling_price * sales.quantity as line_total'),
+                'sales.returned_quantity', 'sales.selling_price', 'daraz_accounts.account_name',
+                DB::raw('(sales.quantity - sales.returned_quantity) as kept'),
+                DB::raw('(sales.quantity - sales.returned_quantity) * sales.selling_price as kept_value'),
             ]);
 
         return [
-            'title' => 'Sales Income',
-            'subtitle' => 'Every delivered order that brought money in. Orders that are pending, cancelled or returned are not counted.',
-            'columns' => ['Date', 'Product', 'Shop', 'Qty', 'Price', 'Total'],
+            'title' => $title,
+            'subtitle' => $subtitle,
+            'columns' => ['Date', 'Product', 'Shop', 'Sold', 'Kept', 'Money kept'],
             'rows' => $rows->map(fn ($row) => [
                 Carbon::parse($row->sold_date)->format('d M Y'),
                 $row->product_name,
                 $row->account_name ?? '—',
                 (string) $row->quantity,
-                $this->taka($row->selling_price),
-                $this->taka($row->line_total),
+                $row->returned_quantity > 0
+                    ? $row->kept.' ('.$row->returned_quantity.' sent back)'
+                    : (string) $row->kept,
+                $this->taka($row->kept_value),
             ])->all(),
-            'total' => (float) $rows->sum('line_total'),
-            'total_label' => 'Total sales income',
+            'total' => round((float) $rows->sum('kept_value'), 2),
+            'total_label' => 'Total money kept',
         ];
+    }
+
+    private function revenueDetails(Carbon $from, Carbon $to): array
+    {
+        return $this->keptSalesDetails(
+            $from,
+            $to,
+            'Delivered Orders',
+            'Orders the customer received and kept. If part of an order was sent back, only the part they kept is counted here — that is the money you actually keep.',
+        );
     }
 
     /** What the delivered goods cost to buy — the other half of gross profit. */
@@ -316,12 +494,34 @@ class DashboardService
         ];
     }
 
-    /** Wallet credits (money given) or debits (money spent), row by row. */
+    /**
+     * Wallet credits (money invested in staff) or debits (money they spent).
+     *
+     * Answers the two questions in order: WHO, then WHAT FOR. Both summaries and the
+     * transaction list come from the same query, so the three always agree.
+     */
     private function ledgerDetails(Carbon $from, Carbon $to, ?int $employeeId, bool $credits): array
     {
-        $rows = $this->ledger($from, $to, $employeeId)
+        $base = fn () => $this->ledger($from, $to, $employeeId)
             ->join('users', 'users.id', '=', 'balance_transactions.user_id')
-            ->where('balance_transactions.amount', $credits ? '>' : '<', 0)
+            ->where('balance_transactions.amount', $credits ? '>' : '<', 0);
+
+        // Sign: debits are stored negative, so flip them to read as positive amounts.
+        $magnitude = $credits ? 'SUM(balance_transactions.amount)' : 'SUM(-balance_transactions.amount)';
+
+        $byEmployee = $base()
+            ->selectRaw("users.name, COUNT(*) as transactions, {$magnitude} as total")
+            ->groupBy('users.name')
+            ->orderByDesc('total')
+            ->get();
+
+        $byPurpose = $base()
+            ->selectRaw("balance_transactions.type, COUNT(*) as transactions, {$magnitude} as total")
+            ->groupBy('balance_transactions.type')
+            ->orderByDesc('total')
+            ->get();
+
+        $rows = $base()
             ->orderByDesc('balance_transactions.created_at')
             ->limit(200)
             ->get([
@@ -329,12 +529,39 @@ class DashboardService
                 'balance_transactions.amount', 'balance_transactions.note', 'users.name',
             ]);
 
+        $total = (float) $byEmployee->sum('total');
+
+        $section = fn (string $title, string $hint, Collection $items, callable $label) => [
+            'title' => $title,
+            'hint' => $hint,
+            'items' => $items->map(fn ($row) => [
+                'label' => $label($row),
+                'total' => $this->taka($row->total),
+                'meta' => $row->transactions.' transaction(s)',
+                'percent' => $total > 0 ? round((float) $row->total / $total * 100, 1) : 0.0,
+            ])->all(),
+        ];
+
         return [
-            'title' => $credits ? 'Money Given to Staff' : 'Money Staff Spent',
+            'title' => $credits ? 'Total Investment in Staff' : 'Staff Expenses',
             'subtitle' => $credits
-                ? 'Every payment that went into a staff member’s wallet.'
-                : 'Every taka that left a staff wallet — buying products, or day-to-day expenses.',
-            'columns' => ['Date', 'Staff', 'Source', 'Note', 'Amount'],
+                ? 'Every taka the company put into a staff member’s wallet, and what it was for.'
+                : 'Every taka that left a staff wallet — buying products, or day-to-day running costs.',
+            'sections' => [
+                $section(
+                    $credits ? 'Which staff received it' : 'Which staff spent it',
+                    'Who the money went to',
+                    $byEmployee,
+                    fn ($row) => $row->name,
+                ),
+                $section(
+                    $credits ? 'What it was given for' : 'What it was spent on',
+                    'The purpose behind each taka',
+                    $byPurpose,
+                    fn ($row) => self::LEDGER_LABELS[$row->type] ?? ucfirst(str_replace('_', ' ', $row->type)),
+                ),
+            ],
+            'columns' => ['Date', 'Staff', 'Purpose', 'Note', 'Amount'],
             'rows' => $rows->map(fn ($row) => [
                 Carbon::parse($row->created_at)->format('d M Y'),
                 $row->name,
@@ -342,8 +569,8 @@ class DashboardService
                 $row->note ?: '—',
                 $this->taka(abs((float) $row->amount)),
             ])->all(),
-            'total' => (float) $rows->sum(fn ($row) => abs((float) $row->amount)),
-            'total_label' => $credits ? 'Total given' : 'Total spent',
+            'total' => round($total, 2),
+            'total_label' => $credits ? 'Total invested' : 'Total spent',
         ];
     }
 
@@ -517,6 +744,97 @@ class DashboardService
             'revenue' => (float) $row->revenue,
             'order_percent' => $totalOrders > 0 ? round((int) $row->orders / $totalOrders * 100, 1) : 0.0,
             'quantity_percent' => $totalQuantity > 0 ? round((int) $row->quantity / $totalQuantity * 100, 1) : 0.0,
+        ];
+    }
+
+    /** Statuses that mean "the customer has not received it yet, and still might". */
+    private const AWAITING_DELIVERY = [
+        'pending', 'confirmed', 'send_to_courier', 'shipped',
+    ];
+
+    /**
+     * Orders still on their way. Cancelled and returned orders are NOT here — those are
+     * finished, nobody is waiting for them.
+     */
+    private function pendingDelivery(Carbon $from, Carbon $to): array
+    {
+        $row = $this->salesQuery()
+            ->whereIn('sales.status', self::AWAITING_DELIVERY)
+            ->whereBetween('sales.sold_date', $this->bounds($from, $to))
+            ->selectRaw('
+                COUNT(*) as orders,
+                COALESCE(SUM(sales.quantity), 0) as quantity,
+                COALESCE(SUM(sales.selling_price * sales.quantity), 0) as value
+            ')
+            ->first();
+
+        return [
+            'orders' => (int) $row->orders,
+            'quantity' => (int) $row->quantity,
+            'value' => round((float) $row->value, 2),
+        ];
+    }
+
+    // ── Product pipeline: requested → purchased → sold → left on the shelf ─────
+
+    /**
+     * Where the goods are in their life. Deliberately NOT date-filtered: a requisition
+     * raised in March and still unpurchased today is exactly what you want to see, and
+     * stock on the shelf has no date at all.
+     */
+    private function pipeline(): array
+    {
+        // Product lines on live requisitions (a rejected requisition will never be bought).
+        $requisitionLines = fn () => VoidedUsers::exclude(
+            DB::table('requisition_items')
+                ->join('requisitions', 'requisitions.id', '=', 'requisition_items.requisition_id')
+                ->where('requisition_items.item_type', 'product')
+                ->whereNotIn('requisitions.status', ['rejected']),
+            'requisitions.employee_id',
+        );
+
+        $requested = (int) $requisitionLines()->sum('requisition_items.quantity');
+
+        $purchasedViaRequisition = (int) $requisitionLines()
+            ->whereNotNull('requisition_items.purchased_at')
+            ->sum('requisition_items.quantity');
+
+        $awaitingPurchase = (int) $requisitionLines()
+            ->whereNull('requisition_items.purchased_at')
+            ->sum('requisition_items.quantity');
+
+        $purchasedDirect = (int) VoidedUsers::exclude(
+            DB::table('direct_purchase_items')
+                ->join('direct_purchases', 'direct_purchases.id', '=', 'direct_purchase_items.direct_purchase_id')
+                ->where('direct_purchases.status', 'approved'),
+            'direct_purchases.employee_id',
+        )->sum('direct_purchase_items.quantity');
+
+        // Units the customer actually kept — the same rule revenue uses.
+        $sold = (int) $this->fulfilledSales()
+            ->selectRaw('COALESCE(SUM(sales.quantity - sales.returned_quantity), 0) as sold')
+            ->value('sold');
+
+        $stock = DB::table('products')
+            ->leftJoinSub($this->productCostQuery(), 'costs', 'costs.product_id', '=', 'products.id')
+            ->selectRaw('
+                COALESCE(SUM(products.current_stock), 0) as quantity,
+                COALESCE(SUM(products.booked_stock), 0) as booked,
+                COALESCE(SUM(products.current_stock
+                    * COALESCE(costs.unit_cost, products.default_purchase_price, 0)), 0) as value
+            ')
+            ->first();
+
+        return [
+            'requested' => $requested,
+            'purchased' => $purchasedViaRequisition + $purchasedDirect,
+            'purchased_via_requisition' => $purchasedViaRequisition,
+            'purchased_direct' => $purchasedDirect,
+            'awaiting_purchase' => $awaitingPurchase,
+            'sold' => $sold,
+            'stock' => (int) $stock->quantity,
+            'stock_booked' => (int) $stock->booked,
+            'stock_value' => round((float) $stock->value, 2),
         ];
     }
 

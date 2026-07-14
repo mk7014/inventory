@@ -91,28 +91,30 @@
             </div>
         </a>
 
-        <x-dashboard.kpi label="Money You Kept" :value="$money($profit['revenue'])" tone="emerald"
-                         hint="Sales, after returns were refunded" metric="revenue"
-                         icon="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 9v1m9-5a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <x-dashboard.kpi label="Delivered Orders" :value="$money($profit['revenue'])" tone="emerald"
+                         :hint="$delivered['orders'].' order(s) · '.$delivered['quantity'].' item(s) delivered'"
+                         metric="revenue"
+                         icon="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+
+        <x-dashboard.kpi label="Pending Delivery" :value="$money($pendingDelivery['value'])" tone="amber"
+                         :hint="$pendingDelivery['orders'].' order(s) · '.$pendingDelivery['quantity'].' item(s) on the way'"
+                         metric="pending_delivery"
+                         icon="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+
+        <x-dashboard.kpi label="Total Investment" :value="$money($funds['total'])" tone="sky"
+                         :hint="$funds['transactions'].' payment(s) into staff wallets'" metric="funds"
+                         icon="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
+    </div>
+
+    {{-- Second row --}}
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <x-dashboard.kpi label="Staff Expenses" :value="$money($spend['total'])" tone="rose"
+                         :hint="$spend['transactions'].' transaction(s)'" metric="spend"
+                         icon="M19 14l-7 7m0 0l-7-7m7 7V3" />
 
         <x-dashboard.kpi label="Money Given Back (Returns)" :value="$money($returns['value'])" tone="amber"
                          :hint="$returns['quantity'].' item(s) came back · '.$returns['rate'].'% of sales'" metric="returns"
                          icon="M3 10h10a4 4 0 014 4v1M3 10l4-4M3 10l4 4" />
-
-        <x-dashboard.kpi label="Money Given to Staff" :value="$money($funds['total'])" tone="sky"
-                         :hint="$funds['transactions'].' payments'" metric="funds"
-                         icon="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
-    </div>
-
-    {{-- Second row: what staff spent, kept out of the headline four --}}
-    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <x-dashboard.kpi label="Money Staff Spent" :value="$money($spend['total'])" tone="rose"
-                         :hint="$spend['transactions'].' transactions'" metric="spend"
-                         icon="M19 14l-7 7m0 0l-7-7m7 7V3" />
-
-        <x-dashboard.kpi label="Total Ordered (before returns)" :value="$money($profit['gross_sales'])" tone="slate"
-                         hint="Everything customers ordered and received" metric="orders"
-                         icon="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
 
         <x-dashboard.kpi label="Damaged Returns (loss)" :value="$money($profit['damaged_loss'])" tone="rose"
                          :hint="$returns['damaged_quantity'].' item(s) could not be resold'" metric="returns"
@@ -122,6 +124,44 @@
                          hint="Transport, food, office and so on" metric="expenses"
                          icon="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
     </div>
+
+    {{-- ── Product journey: requested → bought → sold → left on the shelf ──── --}}
+    <section class="mb-6 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+        <div class="flex items-center gap-2.5">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                </svg>
+            </span>
+            <div>
+                <h2 class="text-[14px] font-bold text-[#17211c]">Where Your Products Are</h2>
+                <p class="text-[11px] text-slate-400">
+                    From the moment staff ask for a product to what is left on the shelf. Click any step for the full list.
+                </p>
+            </div>
+        </div>
+
+        <div class="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
+
+            <x-dashboard.tile label="Asked For" :count="$pipeline['requested']" unit="items"
+                              hint="Requested on requisitions" tone="slate" metric="requested" />
+
+            <x-dashboard.tile label="Bought" :count="$pipeline['purchased']" unit="items"
+                              :hint="$pipeline['purchased_via_requisition'].' via requisition · '.$pipeline['purchased_direct'].' direct'"
+                              tone="sky" metric="purchased" />
+
+            <x-dashboard.tile label="Still to Buy" :count="$pipeline['awaiting_purchase']" unit="items"
+                              hint="Asked for, not bought yet" tone="amber" metric="awaiting_purchase" />
+
+            <x-dashboard.tile label="Sold" :count="$pipeline['sold']" unit="items"
+                              hint="Delivered and kept by customers" tone="emerald" metric="sold" />
+
+            <x-dashboard.tile label="Left in Stock" :count="$pipeline['stock']" unit="items"
+                              :hint="'Worth '.$money($pipeline['stock_value']).($pipeline['stock_booked'] > 0 ? ' · '.$pipeline['stock_booked'].' reserved' : '')"
+                              tone="indigo" metric="stock" />
+        </div>
+    </section>
 
     {{-- ── 1 + 2. Employee fund & expense summaries ───────────────── --}}
     <div class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -583,6 +623,9 @@
                     @endfor
                 </div>
 
+                {{-- Grouped summaries (who, and what for) shown above the raw list --}}
+                <div id="dtSections" class="hidden space-y-4 border-b border-slate-100 bg-slate-50/40 p-5"></div>
+
                 <table id="dtTable" class="hidden w-full text-left text-sm">
                     <thead class="sticky top-0 bg-slate-50/95 backdrop-blur">
                         <tr id="dtHead" class="border-b border-slate-100 text-[10px] font-semibold uppercase tracking-wider text-slate-400"></tr>
@@ -633,11 +676,50 @@
             setTimeout(() => dtDrawer.classList.add('hidden'), 300);
         }
 
+        const dtSections = document.getElementById('dtSections');
+
+        /** "Who got it" / "What it was for" summaries, rendered above the transaction list. */
+        function renderSections(sections) {
+            if (!sections || !sections.length) {
+                dtSections.classList.add('hidden');
+                dtSections.innerHTML = '';
+                return;
+            }
+
+            dtSections.innerHTML = sections.map((section) => `
+                <div>
+                    <p class="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">${section.title}</p>
+                    <div class="space-y-2">
+                        ${section.items.map((item) => `
+                            <div>
+                                <div class="flex items-baseline justify-between gap-2 text-[12px]">
+                                    <span class="truncate font-medium text-slate-600">${item.label}</span>
+                                    <span class="shrink-0">
+                                        <span class="font-bold text-slate-700">${item.total}</span>
+                                        <span class="ml-1 text-slate-400">${item.percent}%</span>
+                                    </span>
+                                </div>
+                                <div class="mt-1 flex items-center gap-2">
+                                    <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200/70">
+                                        <div class="h-full rounded-full bg-indigo-500" style="width: ${Math.min(100, item.percent)}%"></div>
+                                    </div>
+                                    <span class="w-24 shrink-0 text-right text-[10px] font-medium text-slate-400">${item.meta}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            dtSections.classList.remove('hidden');
+        }
+
         async function loadDetail(metric, status = null) {
             // Show the drawer immediately with a skeleton — never a blank freeze.
             dtSkeleton.classList.remove('hidden');
             dtTable.classList.add('hidden');
             dtEmpty.classList.add('hidden');
+            dtSections.classList.add('hidden');
             document.getElementById('dtTitle').textContent = 'Loading…';
             document.getElementById('dtSubtitle').textContent = '';
             document.getElementById('dtTotal').textContent = '';
@@ -658,6 +740,7 @@
 
                 document.getElementById('dtTitle').textContent = data.title;
                 document.getElementById('dtSubtitle').textContent = data.subtitle;
+                renderSections(data.sections);
                 document.getElementById('dtTotalLabel').textContent = data.total_label;
                 document.getElementById('dtTotal').textContent =
                     '৳ ' + Number(data.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

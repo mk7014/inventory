@@ -24,7 +24,11 @@ class DashboardController extends Controller
     public function details(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'metric' => ['required', Rule::in(['revenue', 'cost', 'returns', 'orders', 'funds', 'spend', 'expenses'])],
+            'metric' => ['required', Rule::in([
+                'revenue', 'cost', 'returns', 'orders', 'pending_delivery',
+                'funds', 'spend', 'expenses',
+                'requested', 'purchased', 'awaiting_purchase', 'sold', 'stock',
+            ])],
             'status' => ['nullable', Rule::enum(SaleStatus::class)],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
@@ -84,6 +88,8 @@ class DashboardController extends Controller
             'expenseCategories' => $data['expenseCategories'],
             'sales' => $data['sales'],
             'delivered' => $data['delivered'],
+            'pendingDelivery' => $data['pendingDelivery'],
+            'pipeline' => $data['pipeline'],
             'returns' => $data['returns'],
             'profit' => $data['profit'],
             'trend' => $data['trend'],
