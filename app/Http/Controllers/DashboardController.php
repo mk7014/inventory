@@ -2,16 +2,53 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SaleStatus;
 use App\Models\Requisition;
 use App\Services\DashboardService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
     public function __construct(private DashboardService $dashboard)
     {
+    }
+
+    /**
+     * The records behind a headline card. Clicking "Sales Income" should show the
+     * actual orders, not just a number the user has to trust.
+     */
+    public function details(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'metric' => ['required', Rule::in(['revenue', 'cost', 'returns', 'orders', 'funds', 'spend', 'expenses'])],
+            'status' => ['nullable', Rule::enum(SaleStatus::class)],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
+        [$from, $to] = $this->range($validated);
+        $user = $request->user();
+
+        return response()->json($this->dashboard->details(
+            $validated['metric'],
+            $from,
+            $to,
+            $user->isAdmin() ? null : $user->id,
+            $validated['status'] ?? null,
+        ));
+    }
+
+    /** @return array{0: Carbon, 1: Carbon} */
+    private function range(array $validated): array
+    {
+        return [
+            Carbon::parse($validated['from'] ?? now()->startOfMonth())->startOfDay(),
+            Carbon::parse($validated['to'] ?? now())->endOfDay(),
+        ];
     }
 
     public function __invoke(Request $request): View
@@ -21,8 +58,7 @@ class DashboardController extends Controller
             'to' => ['nullable', 'date', 'after_or_equal:from'],
         ]);
 
-        $from = Carbon::parse($validated['from'] ?? now()->startOfMonth())->startOfDay();
-        $to = Carbon::parse($validated['to'] ?? now())->endOfDay();
+        [$from, $to] = $this->range($validated);
 
         $user = $request->user();
 
@@ -48,6 +84,7 @@ class DashboardController extends Controller
             'expenseCategories' => $data['expenseCategories'],
             'sales' => $data['sales'],
             'delivered' => $data['delivered'],
+            'returns' => $data['returns'],
             'profit' => $data['profit'],
             'trend' => $data['trend'],
             'salesTrend' => $data['salesTrend'],

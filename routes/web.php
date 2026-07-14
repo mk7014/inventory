@@ -64,8 +64,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Everything below is gated by a dynamic, role-assigned permission. Admins
     // bypass every check via the Gate::before hook in AppServiceProvider.
 
-    Route::middleware('permission:dashboard.view')
-        ->get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::middleware('permission:dashboard.view')->group(function () {
+        Route::get('/dashboard', DashboardController::class)->name('dashboard');
+        Route::get('/dashboard/details', [DashboardController::class, 'details'])->name('dashboard.details');
+    });
 
     // ── Requisitions ────────────────────────────────────────────────
     Route::middleware('permission:requisitions.create')->group(function () {

@@ -62,10 +62,11 @@
     {{-- ── Headline KPIs ──────────────────────────────────────────── --}}
     <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-        {{-- Net profit (feature card) --}}
-        <div class="group relative overflow-hidden rounded-2xl p-5 text-white shadow-sm ring-1 ring-indigo-900/10
-                    transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
-             style="background: linear-gradient(135deg,#4f46e5 0%,#3730a3 100%);">
+        {{-- Profit you keep (feature card) — jumps to the plain-English breakdown below --}}
+        <a href="#profit-explainer"
+           class="group relative block overflow-hidden rounded-2xl p-5 text-white shadow-sm ring-1 ring-indigo-900/10
+                  transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+           style="background: linear-gradient(135deg,#4f46e5 0%,#3730a3 100%);">
             <div class="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/10"></div>
             <div class="absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-black/10"></div>
             <div class="relative">
@@ -75,26 +76,51 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                         </svg>
                     </span>
-                    <p class="text-[11px] font-semibold uppercase tracking-wider text-indigo-50/80">Net Profit</p>
+                    <p class="text-[11px] font-semibold uppercase tracking-wider text-indigo-50/80">Profit You Keep</p>
                 </div>
                 <p class="mt-3 text-2xl font-bold tracking-tight">{{ $money($profit['net_profit']) }}</p>
                 <p class="mt-1 text-[11px] font-medium text-indigo-50/70">
-                    {{ $profit['net_margin'] }}% margin · after cost &amp; expenses
+                    What is left after everything is paid
+                </p>
+                <p class="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-white/90 underline-offset-2 group-hover:underline">
+                    See how this is calculated
+                    <svg class="h-3 w-3 transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7"/>
+                    </svg>
                 </p>
             </div>
-        </div>
+        </a>
 
-        <x-dashboard.kpi label="Gross Revenue" :value="$money($profit['revenue'])" tone="emerald"
-                         hint="Delivered sales only"
+        <x-dashboard.kpi label="Money You Kept" :value="$money($profit['revenue'])" tone="emerald"
+                         hint="Sales, after returns were refunded" metric="revenue"
                          icon="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 9v1m9-5a9 9 0 11-18 0 9 9 0 0118 0z" />
 
-        <x-dashboard.kpi label="Funds Given" :value="$money($funds['total'])" tone="sky"
-                         :hint="$funds['transactions'].' transactions'"
-                         icon="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
+        <x-dashboard.kpi label="Money Given Back (Returns)" :value="$money($returns['value'])" tone="amber"
+                         :hint="$returns['quantity'].' item(s) came back · '.$returns['rate'].'% of sales'" metric="returns"
+                         icon="M3 10h10a4 4 0 014 4v1M3 10l4-4M3 10l4 4" />
 
-        <x-dashboard.kpi label="Total Spent" :value="$money($spend['total'])" tone="rose"
-                         :hint="$spend['transactions'].' transactions'"
+        <x-dashboard.kpi label="Money Given to Staff" :value="$money($funds['total'])" tone="sky"
+                         :hint="$funds['transactions'].' payments'" metric="funds"
+                         icon="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
+    </div>
+
+    {{-- Second row: what staff spent, kept out of the headline four --}}
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <x-dashboard.kpi label="Money Staff Spent" :value="$money($spend['total'])" tone="rose"
+                         :hint="$spend['transactions'].' transactions'" metric="spend"
                          icon="M19 14l-7 7m0 0l-7-7m7 7V3" />
+
+        <x-dashboard.kpi label="Total Ordered (before returns)" :value="$money($profit['gross_sales'])" tone="slate"
+                         hint="Everything customers ordered and received" metric="orders"
+                         icon="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+
+        <x-dashboard.kpi label="Damaged Returns (loss)" :value="$money($profit['damaged_loss'])" tone="rose"
+                         :hint="$returns['damaged_quantity'].' item(s) could not be resold'" metric="returns"
+                         icon="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+
+        <x-dashboard.kpi label="Running Costs" :value="$money($profit['operating_expenses'])" tone="amber"
+                         hint="Transport, food, office and so on" metric="expenses"
+                         icon="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
     </div>
 
     {{-- ── 1 + 2. Employee fund & expense summaries ───────────────── --}}
@@ -110,8 +136,8 @@
                         </svg>
                     </span>
                     <div>
-                        <h2 class="text-[14px] font-bold text-[#17211c]">Employee Fund Summary</h2>
-                        <p class="text-[11px] text-slate-400">Money given to employees, by source</p>
+                        <h2 class="text-[14px] font-bold text-[#17211c]">Money Given to Staff</h2>
+                        <p class="text-[11px] text-slate-400">Where the money came from</p>
                     </div>
                 </div>
                 <a href="{{ $fundsLink }}"
@@ -139,8 +165,8 @@
                         </svg>
                     </span>
                     <div>
-                        <h2 class="text-[14px] font-bold text-[#17211c]">Employee Expense Summary</h2>
-                        <p class="text-[11px] text-slate-400">How those funds were spent</p>
+                        <h2 class="text-[14px] font-bold text-[#17211c]">Where Staff Money Went</h2>
+                        <p class="text-[11px] text-slate-400">Buying products vs day-to-day costs</p>
                     </div>
                 </div>
                 <a href="{{ route('expenses.index') }}"
@@ -180,14 +206,14 @@
                     </svg>
                 </span>
                 <div>
-                    <h2 class="text-[14px] font-bold text-[#17211c]">Sales Analytics</h2>
-                    <p class="text-[11px] text-slate-400">All orders in the selected range</p>
+                    <h2 class="text-[14px] font-bold text-[#17211c]">Your Orders</h2>
+                    <p class="text-[11px] text-slate-400">Every order, whatever its status</p>
                 </div>
             </div>
 
             <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div>
-                    <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total Sales</p>
+                    <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Value of all orders</p>
                     <p class="mt-1 text-lg font-bold text-[#17211c]">{{ $money($sales['amount']) }}</p>
                 </div>
                 <div>
@@ -195,11 +221,11 @@
                     <p class="mt-1 text-lg font-bold text-[#17211c]">{{ number_format($sales['orders']) }}</p>
                 </div>
                 <div>
-                    <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Avg Order Value</p>
+                    <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Average per order</p>
                     <p class="mt-1 text-lg font-bold text-[#17211c]">{{ $money($sales['average_order_value']) }}</p>
                 </div>
                 <div>
-                    <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Units Sold</p>
+                    <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Items sold</p>
                     <p class="mt-1 text-lg font-bold text-[#17211c]">{{ number_format($sales['quantity']) }}</p>
                 </div>
             </div>
@@ -216,20 +242,34 @@
 
             <div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
-                    <p class="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Breakdown by Status</p>
-                    <div class="space-y-2">
+                    <p class="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                        Every Order, by Status
+                    </p>
+                    <div class="space-y-1.5">
                         @foreach ($sales['statuses'] as $status)
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold {{ $status['badge'] }}">
-                                    {{ $status['label'] }}
+                            {{-- Each status opens the exact orders that sit in it --}}
+                            <button type="button"
+                                    class="js-metric group flex w-full items-start justify-between gap-2 rounded-lg
+                                           px-2 py-1.5 text-left transition hover:bg-slate-50"
+                                    data-metric="orders" data-status="{{ $status['status'] }}">
+                                <span class="min-w-0">
+                                    <span class="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold {{ $status['badge'] }}">
+                                        {{ $status['label'] }}
+                                    </span>
+                                    <span class="mt-1 block truncate text-[11px] text-slate-400 group-hover:text-slate-500">
+                                        {{ $status['meaning'] }}
+                                    </span>
                                 </span>
-                                <span class="text-right text-[12px]">
-                                    <span class="font-bold text-slate-700">{{ $money($status['amount']) }}</span>
-                                    <span class="ml-1 text-slate-400">{{ $status['orders'] }} ord · {{ $status['percent'] }}%</span>
+                                <span class="shrink-0 text-right">
+                                    <span class="block text-[12px] font-bold text-slate-700">{{ $money($status['amount']) }}</span>
+                                    <span class="block text-[11px] text-slate-400">
+                                        {{ $status['orders'] }} order(s) · {{ $status['quantity'] }} item(s) · {{ $status['percent'] }}%
+                                    </span>
                                 </span>
-                            </div>
+                            </button>
                         @endforeach
                     </div>
+                    <p class="mt-2 text-[11px] text-slate-300">Click any status to see the orders inside it.</p>
                 </div>
                 <div>
                     <p class="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Status Distribution</p>
@@ -246,8 +286,8 @@
                     </svg>
                 </span>
                 <div>
-                    <h2 class="text-[14px] font-bold text-[#17211c]">Delivered Sales</h2>
-                    <p class="text-[11px] text-slate-400">Fulfilled &amp; realised</p>
+                    <h2 class="text-[14px] font-bold text-[#17211c]">Completed Orders</h2>
+                    <p class="text-[11px] text-slate-400">Delivered — the money is real</p>
                 </div>
             </div>
 
@@ -280,8 +320,8 @@
         </section>
     </div>
 
-    {{-- ── 5. Profit analytics ────────────────────────────────────── --}}
-    <section class="mb-6 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+    {{-- ── 5. How profit is made — plain-English walkthrough ───────── --}}
+    <section id="profit-explainer" class="mb-6 scroll-mt-6 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
         <div class="flex items-center gap-2.5">
             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                 <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -290,21 +330,149 @@
                 </svg>
             </span>
             <div>
-                <h2 class="text-[14px] font-bold text-[#17211c]">Profit Analytics</h2>
-                <p class="text-[11px] text-slate-400">
-                    Product cost is the weighted average of what each item actually cost to buy
-                </p>
+                <h2 class="text-[14px] font-bold text-[#17211c]">How Your Profit Is Made</h2>
+                <p class="text-[11px] text-slate-400">Follow the money, step by step. Click any step to see the records behind it.</p>
             </div>
         </div>
 
-        <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <x-dashboard.figure label="Gross Revenue" :value="$money($profit['revenue'])" tone="slate" />
-            <x-dashboard.figure label="Product Cost" :value="'− '.$money($profit['product_cost'])" tone="rose" />
-            <x-dashboard.figure label="Gross Profit" :value="$money($profit['gross_profit'])"
-                                :hint="$profit['gross_margin'].'% margin'" tone="emerald" />
-            <x-dashboard.figure label="Operating Exp." :value="'− '.$money($profit['operating_expenses'])" tone="amber" />
-            <x-dashboard.figure label="Net Profit" :value="$money($profit['net_profit'])" tone="indigo" />
-            <x-dashboard.figure label="Net Margin" :value="$profit['net_margin'].'%'" tone="indigo" />
+        @php
+            // Bar widths are relative to the biggest number in the walk (gross sales),
+            // so each step visibly shrinks the pile.
+            $base = max($profit['gross_sales'], 1);
+            $scale = fn ($value) => $value == 0 ? 0 : max(2, min(100, abs($value) / $base * 100));
+        @endphp
+
+        <div class="mt-5 space-y-2.5">
+
+            {{-- Step 1 — everything customers ordered --}}
+            <button type="button" class="js-metric group flex w-full items-center gap-3 rounded-xl border border-slate-100
+                                          bg-slate-50/70 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/50"
+                    data-metric="orders">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-[11px] font-bold text-emerald-700">1</span>
+                <span class="min-w-0 flex-1">
+                    <span class="flex flex-wrap items-baseline justify-between gap-x-2">
+                        <span class="text-[13px] font-bold text-slate-700">Money customers paid you</span>
+                        <span class="text-[14px] font-bold text-emerald-700">{{ $money($profit['gross_sales']) }}</span>
+                    </span>
+                    <span class="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70">
+                        <span class="block h-full rounded-full bg-emerald-500" style="width: {{ $scale($profit['gross_sales']) }}%"></span>
+                    </span>
+                    <span class="mt-1 block text-[11px] text-slate-400">
+                        Every order the customer actually received. Pending and cancelled orders are not money in the bank.
+                    </span>
+                </span>
+            </button>
+
+            {{-- Step 2 — returns --}}
+            <button type="button" class="js-metric group flex w-full items-center gap-3 rounded-xl border border-slate-100
+                                          bg-slate-50/70 p-3 text-left transition hover:border-amber-200 hover:bg-amber-50/50"
+                    data-metric="returns">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-[11px] font-bold text-amber-700">2</span>
+                <span class="min-w-0 flex-1">
+                    <span class="flex flex-wrap items-baseline justify-between gap-x-2">
+                        <span class="text-[13px] font-bold text-slate-700">Minus what you refunded for returns</span>
+                        <span class="text-[14px] font-bold text-amber-700">− {{ $money($profit['returned_value']) }}</span>
+                    </span>
+                    <span class="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70">
+                        <span class="block h-full rounded-full bg-amber-500" style="width: {{ $scale($profit['returned_value']) }}%"></span>
+                    </span>
+                    <span class="mt-1 block text-[11px] text-slate-400">
+                        {{ $returns['quantity'] }} item(s) came back and the money went back to the customer.
+                        If a customer kept part of an order, you still keep the money for that part.
+                    </span>
+                </span>
+            </button>
+
+            {{-- Subtotal — money kept --}}
+            <div class="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
+                    </svg>
+                </span>
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-baseline justify-between gap-x-2">
+                        <span class="text-[13px] font-bold text-emerald-800">Money you actually kept from sales</span>
+                        <span class="text-[15px] font-bold text-emerald-800">{{ $money($profit['revenue']) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Step 3 — what the goods cost --}}
+            <button type="button" class="js-metric group flex w-full items-center gap-3 rounded-xl border border-slate-100
+                                          bg-slate-50/70 p-3 text-left transition hover:border-rose-200 hover:bg-rose-50/50"
+                    data-metric="cost">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-[11px] font-bold text-rose-700">3</span>
+                <span class="min-w-0 flex-1">
+                    <span class="flex flex-wrap items-baseline justify-between gap-x-2">
+                        <span class="text-[13px] font-bold text-slate-700">Minus what those products cost you</span>
+                        <span class="text-[14px] font-bold text-rose-600">− {{ $money($profit['product_cost']) }}</span>
+                    </span>
+                    <span class="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70">
+                        <span class="block h-full rounded-full bg-rose-500" style="width: {{ $scale($profit['product_cost']) }}%"></span>
+                    </span>
+                    <span class="mt-1 block text-[11px] text-slate-400">
+                        Only for the goods the customer kept. Anything returned in good condition is back on the shelf, so it never cost you anything.
+                    </span>
+                </span>
+            </button>
+
+            {{-- Step 4 — damaged returns (only when there are any) --}}
+            @if($profit['damaged_loss'] > 0)
+                <button type="button" class="js-metric group flex w-full items-center gap-3 rounded-xl border border-rose-100
+                                              bg-rose-50/50 p-3 text-left transition hover:border-rose-300 hover:bg-rose-50"
+                        data-metric="returns">
+                    <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-[11px] font-bold text-rose-700">4</span>
+                    <span class="min-w-0 flex-1">
+                        <span class="flex flex-wrap items-baseline justify-between gap-x-2">
+                            <span class="text-[13px] font-bold text-slate-700">Minus goods returned damaged</span>
+                            <span class="text-[14px] font-bold text-rose-600">− {{ $money($profit['damaged_loss']) }}</span>
+                        </span>
+                        <span class="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70">
+                            <span class="block h-full rounded-full bg-rose-600" style="width: {{ $scale($profit['damaged_loss']) }}%"></span>
+                        </span>
+                        <span class="mt-1 block text-[11px] text-slate-400">
+                            {{ $returns['damaged_quantity'] }} item(s) came back broken — you refunded the customer AND cannot sell the goods again. A pure loss.
+                        </span>
+                    </span>
+                </button>
+            @endif
+
+            {{-- Step 5 — running costs --}}
+            <button type="button" class="js-metric group flex w-full items-center gap-3 rounded-xl border border-slate-100
+                                          bg-slate-50/70 p-3 text-left transition hover:border-amber-200 hover:bg-amber-50/50"
+                    data-metric="expenses">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-[11px] font-bold text-amber-700">
+                    {{ $profit['damaged_loss'] > 0 ? 5 : 4 }}
+                </span>
+                <span class="min-w-0 flex-1">
+                    <span class="flex flex-wrap items-baseline justify-between gap-x-2">
+                        <span class="text-[13px] font-bold text-slate-700">Minus running costs</span>
+                        <span class="text-[14px] font-bold text-amber-700">− {{ $money($profit['operating_expenses']) }}</span>
+                    </span>
+                    <span class="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70">
+                        <span class="block h-full rounded-full bg-amber-500" style="width: {{ $scale($profit['operating_expenses']) }}%"></span>
+                    </span>
+                    <span class="mt-1 block text-[11px] text-slate-400">
+                        Transport, food, office supplies and other day-to-day costs of running the business.
+                    </span>
+                </span>
+            </button>
+
+            {{-- Result --}}
+            <div class="relative overflow-hidden rounded-xl p-4 text-white shadow-sm"
+                 style="background: linear-gradient(135deg,#4f46e5 0%,#3730a3 100%);">
+                <div class="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-white/10"></div>
+                <div class="relative flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <div>
+                        <p class="text-[13px] font-bold">= Profit you actually keep</p>
+                        <p class="mt-0.5 text-[11px] text-indigo-50/75">
+                            {{ $profit['net_margin'] }} taka kept from every 100 taka of sales
+                        </p>
+                    </div>
+                    <p class="text-2xl font-bold tracking-tight">{{ $money($profit['net_profit']) }}</p>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -312,25 +480,25 @@
     <div class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
 
         <section class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-            <h2 class="text-[14px] font-bold text-[#17211c]">Revenue, Expenses &amp; Profit</h2>
+            <h2 class="text-[14px] font-bold text-[#17211c]">Money In vs Money Out</h2>
             <p class="mb-3 text-[11px] text-slate-400">Last 12 months</p>
             <div class="h-60"><canvas id="trendChart"></canvas></div>
         </section>
 
         <section class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-            <h2 class="text-[14px] font-bold text-[#17211c]">Purchases vs Sales</h2>
+            <h2 class="text-[14px] font-bold text-[#17211c]">What You Bought vs What You Sold</h2>
             <p class="mb-3 text-[11px] text-slate-400">Monthly comparison</p>
             <div class="h-60"><canvas id="compareChart"></canvas></div>
         </section>
 
         <section class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-            <h2 class="text-[14px] font-bold text-[#17211c]">Delivered Sales Trend</h2>
+            <h2 class="text-[14px] font-bold text-[#17211c]">Daily Sales</h2>
             <p class="mb-3 text-[11px] text-slate-400">Daily revenue across the selected range</p>
             <div class="h-60"><canvas id="salesTrendChart"></canvas></div>
         </section>
 
         <section class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-            <h2 class="text-[14px] font-bold text-[#17211c]">Expense Distribution</h2>
+            <h2 class="text-[14px] font-bold text-[#17211c]">What Running Costs Go On</h2>
             <p class="mb-3 text-[11px] text-slate-400">By category</p>
             @if (empty($expenseCategories['items']))
                 <div class="flex h-60 flex-col items-center justify-center gap-2 text-center">
@@ -385,8 +553,151 @@
         </section>
     </div>
 
+    {{-- ── Drill-down drawer: the records behind a figure ──────────── --}}
+    <div id="detailDrawer" class="fixed inset-0 z-50 hidden">
+        <div id="detailBackdrop"
+             class="absolute inset-0 bg-slate-900/40 opacity-0 backdrop-blur-sm transition-opacity duration-300"></div>
+
+        <div id="detailPanel"
+             class="absolute inset-y-0 right-0 flex w-full max-w-3xl translate-x-full flex-col bg-white
+                    shadow-2xl transition-transform duration-300 ease-in-out">
+
+            <div class="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
+                <div class="min-w-0 flex-1">
+                    <h2 id="dtTitle" class="text-[15px] font-bold text-[#17211c]">Loading…</h2>
+                    <p id="dtSubtitle" class="mt-0.5 text-[12px] text-slate-500"></p>
+                </div>
+                <button type="button" id="dtClose"
+                        class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="min-h-0 flex-1 overflow-auto">
+                {{-- Loading skeleton --}}
+                <div id="dtSkeleton" class="space-y-2 p-5">
+                    @for ($i = 0; $i < 6; $i++)
+                        <div class="h-9 animate-pulse rounded-lg bg-slate-100"></div>
+                    @endfor
+                </div>
+
+                <table id="dtTable" class="hidden w-full text-left text-sm">
+                    <thead class="sticky top-0 bg-slate-50/95 backdrop-blur">
+                        <tr id="dtHead" class="border-b border-slate-100 text-[10px] font-semibold uppercase tracking-wider text-slate-400"></tr>
+                    </thead>
+                    <tbody id="dtBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+
+                <div id="dtEmpty" class="hidden px-5 py-16 text-center">
+                    <p class="text-sm font-semibold text-slate-500">No records in this period</p>
+                    <p class="mt-1 text-[12px] text-slate-400">Try widening the date range at the top of the dashboard.</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-4">
+                <span id="dtTotalLabel" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400"></span>
+                <span id="dtTotal" class="text-[15px] font-bold text-[#17211c]"></span>
+            </div>
+        </div>
+    </div>
+
     @push('scripts')
     <script>
+        // ── Drill-down: click a figure, see the rows it is made of ──────────────
+        // The rows come from the same queries as the cards, so they always add up.
+        const dtDrawer   = document.getElementById('detailDrawer');
+        const dtBackdrop = document.getElementById('detailBackdrop');
+        const dtPanel    = document.getElementById('detailPanel');
+        const dtSkeleton = document.getElementById('dtSkeleton');
+        const dtTable    = document.getElementById('dtTable');
+        const dtEmpty    = document.getElementById('dtEmpty');
+
+        const DETAIL_URL = @json(route('dashboard.details'));
+        const RANGE = { from: @json($from->toDateString()), to: @json($to->toDateString()) };
+
+        function openDetail() {
+            dtDrawer.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            requestAnimationFrame(() => {
+                dtBackdrop.classList.remove('opacity-0');
+                dtPanel.classList.remove('translate-x-full');
+            });
+        }
+
+        function closeDetail() {
+            dtBackdrop.classList.add('opacity-0');
+            dtPanel.classList.add('translate-x-full');
+            document.body.style.overflow = '';
+            setTimeout(() => dtDrawer.classList.add('hidden'), 300);
+        }
+
+        async function loadDetail(metric, status = null) {
+            // Show the drawer immediately with a skeleton — never a blank freeze.
+            dtSkeleton.classList.remove('hidden');
+            dtTable.classList.add('hidden');
+            dtEmpty.classList.add('hidden');
+            document.getElementById('dtTitle').textContent = 'Loading…';
+            document.getElementById('dtSubtitle').textContent = '';
+            document.getElementById('dtTotal').textContent = '';
+            document.getElementById('dtTotalLabel').textContent = '';
+            openDetail();
+
+            const params = new URLSearchParams({ metric, from: RANGE.from, to: RANGE.to });
+            if (status) params.set('status', status);
+
+            try {
+                const response = await fetch(`${DETAIL_URL}?${params}`, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+
+                if (!response.ok) throw new Error(response.statusText);
+
+                const data = await response.json();
+
+                document.getElementById('dtTitle').textContent = data.title;
+                document.getElementById('dtSubtitle').textContent = data.subtitle;
+                document.getElementById('dtTotalLabel').textContent = data.total_label;
+                document.getElementById('dtTotal').textContent =
+                    '৳ ' + Number(data.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                document.getElementById('dtHead').innerHTML = data.columns
+                    .map((column, index) => {
+                        const alignRight = index === data.columns.length - 1;
+                        return `<th class="px-5 py-3 ${alignRight ? 'text-right' : ''}">${column}</th>`;
+                    })
+                    .join('');
+
+                document.getElementById('dtBody').innerHTML = data.rows
+                    .map((row) => '<tr class="tbl-row align-middle">' + row
+                        .map((cell, index) => {
+                            const last = index === row.length - 1;
+                            return `<td class="px-5 py-2.5 text-[12px] ${last ? 'text-right font-bold text-slate-700' : 'text-slate-600'}">${cell}</td>`;
+                        })
+                        .join('') + '</tr>')
+                    .join('');
+
+                dtSkeleton.classList.add('hidden');
+                (data.rows.length ? dtTable : dtEmpty).classList.remove('hidden');
+            } catch (error) {
+                dtSkeleton.classList.add('hidden');
+                dtEmpty.classList.remove('hidden');
+                document.getElementById('dtTitle').textContent = 'Could not load the details';
+                document.getElementById('dtSubtitle').textContent = 'Please try again.';
+            }
+        }
+
+        document.querySelectorAll('.js-metric').forEach((element) => {
+            element.addEventListener('click', () => loadDetail(element.dataset.metric, element.dataset.status || null));
+        });
+
+        document.getElementById('dtClose').addEventListener('click', closeDetail);
+        dtBackdrop.addEventListener('click', closeDetail);
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !dtDrawer.classList.contains('hidden')) closeDetail();
+        });
+
         // Chart.js is already loaded globally by the layout. Every series below is rendered
         // server-side from aggregate SQL — nothing is recomputed in the browser.
         const PALETTE = ['#4f46e5', '#10b981', '#f59e0b', '#f43f5e', '#0ea5e9', '#8b5cf6', '#14b8a6', '#64748b'];

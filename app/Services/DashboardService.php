@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 /**
  * Every number on the dashboard, derived from real records with aggregate SQL.
@@ -66,6 +67,7 @@ class DashboardService
                 'expenseCategories' => $this->expenseCategories($from, $to, $employeeId),
                 'sales' => $sales,
                 'delivered' => $this->delivered($from, $to, $sales['orders'], $sales['quantity']),
+                'returns' => $this->returns($from, $to, $profit['gross_sales']),
                 'profit' => $profit,
                 'trend' => $this->monthlyTrend(),
                 'salesTrend' => $this->dailySalesTrend($from, $to),
@@ -137,12 +139,247 @@ class DashboardService
 
     private function ledger(Carbon $from, Carbon $to, ?int $employeeId)
     {
+        // Columns are qualified because the drill-down joins `users`, which also has
+        // a created_at — an unqualified one would be ambiguous.
         return VoidedUsers::exclude(
             DB::table('balance_transactions')
-                ->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
-                ->when($employeeId, fn ($query) => $query->where('user_id', $employeeId)),
+                ->whereBetween('balance_transactions.created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+                ->when($employeeId, fn ($query) => $query->where('balance_transactions.user_id', $employeeId)),
             'balance_transactions.user_id',
         );
+    }
+
+    /**
+     * The individual records behind a headline figure, so clicking a card can show
+     * exactly where the number came from.
+     *
+     * Every query here reuses the same rules as the card it explains — delivered-only
+     * revenue, voided users excluded — so the rows always add up to the figure shown.
+     *
+     * @return array{title:string, subtitle:string, columns:array, rows:array, total:float, total_label:string}
+     */
+    public function details(string $metric, Carbon $from, Carbon $to, ?int $employeeId = null, ?string $status = null): array
+    {
+        return match ($metric) {
+            'revenue' => $this->revenueDetails($from, $to),
+            'cost' => $this->costDetails($from, $to),
+            'returns' => $this->returnDetails($from, $to),
+            'orders' => $this->orderDetails($from, $to, $status),
+            'funds' => $this->ledgerDetails($from, $to, $employeeId, credits: true),
+            'spend' => $this->ledgerDetails($from, $to, $employeeId, credits: false),
+            'expenses' => $this->expenseDetails($from, $to, $employeeId),
+            default => throw new InvalidArgumentException('Unknown metric: '.$metric),
+        };
+    }
+
+    /**
+     * Every order that came back, and whether the goods were salvageable.
+     *
+     * Driven from `sales.returned_quantity` (not the `returns` table) for the same
+     * reason the Returns card is: a sale can be marked returned from the Action menu
+     * without a returns row ever being written. The returns table is LEFT JOINed only
+     * to recover the condition — where it is missing, that is stated rather than guessed.
+     */
+    private function returnDetails(Carbon $from, Carbon $to): array
+    {
+        $rows = $this->salesQuery()
+            ->leftJoin('returns', 'returns.sale_id', '=', 'sales.id')
+            ->where('sales.returned_quantity', '>', 0)
+            ->whereBetween('sales.sold_date', $this->bounds($from, $to))
+            ->orderByDesc('sales.sold_date')
+            ->limit(200)
+            ->get([
+                'sales.sold_date', 'sales.product_name', 'sales.quantity',
+                'sales.returned_quantity', 'sales.selling_price',
+                'returns.condition', 'returns.reason',
+                DB::raw('sales.returned_quantity * sales.selling_price as refund'),
+            ]);
+
+        return [
+            'title' => 'Returned Orders',
+            'subtitle' => 'Goods the customer sent back. A "good" return goes back on the shelf and can be sold again; a "damaged" one is a straight loss — you refunded the money AND cannot resell the goods.',
+            'columns' => ['Date', 'Product', 'Sold', 'Returned', 'Condition', 'Refunded'],
+            'rows' => $rows->map(fn ($row) => [
+                Carbon::parse($row->sold_date)->format('d M Y'),
+                $row->product_name,
+                (string) $row->quantity,
+                (string) $row->returned_quantity,
+                match ($row->condition) {
+                    'good' => 'Good — back in stock',
+                    'damaged' => 'Damaged — lost',
+                    default => 'Not recorded',
+                },
+                $this->taka($row->refund),
+            ])->all(),
+            'total' => round((float) $rows->sum('refund'), 2),
+            'total_label' => 'Total refunded to customers',
+        ];
+    }
+
+    /** Every order in one status — what "12 pending orders" actually consists of. */
+    private function orderDetails(Carbon $from, Carbon $to, ?string $status): array
+    {
+        $label = $status ? (SaleStatus::tryFrom($status)?->label() ?? ucfirst($status)) : 'All';
+
+        $rows = $this->salesQuery()
+            ->leftJoin('daraz_accounts', 'daraz_accounts.id', '=', 'sales.daraz_account_id')
+            ->when($status, fn ($query) => $query->where('sales.status', $status))
+            ->whereBetween('sales.sold_date', $this->bounds($from, $to))
+            ->orderByDesc('sales.sold_date')
+            ->limit(200)
+            ->get([
+                'sales.sold_date', 'sales.product_name', 'sales.quantity',
+                'sales.returned_quantity', 'sales.selling_price', 'daraz_accounts.account_name',
+                DB::raw('sales.selling_price * sales.quantity as line_total'),
+            ]);
+
+        return [
+            'title' => $label.' Orders',
+            'subtitle' => $status === SaleStatus::Returned->value
+                ? 'These orders came back. The "Kept" column is what the customer did not send back — that part is still your money.'
+                : 'Every order with this status in the selected period.',
+            'columns' => ['Date', 'Product', 'Shop', 'Qty', 'Returned', 'Order value'],
+            'rows' => $rows->map(fn ($row) => [
+                Carbon::parse($row->sold_date)->format('d M Y'),
+                $row->product_name,
+                $row->account_name ?? '—',
+                (string) $row->quantity,
+                $row->returned_quantity > 0 ? (string) $row->returned_quantity : '—',
+                $this->taka($row->line_total),
+            ])->all(),
+            'total' => round((float) $rows->sum('line_total'), 2),
+            'total_label' => 'Total order value',
+        ];
+    }
+
+    /** The delivered orders that make up sales income. */
+    private function revenueDetails(Carbon $from, Carbon $to): array
+    {
+        $rows = $this->salesQuery()
+            ->leftJoin('daraz_accounts', 'daraz_accounts.id', '=', 'sales.daraz_account_id')
+            ->where('sales.status', SaleStatus::Delivered->value)
+            ->whereBetween('sales.sold_date', $this->bounds($from, $to))
+            ->orderByDesc('sales.sold_date')
+            ->limit(200)
+            ->get([
+                'sales.sold_date', 'sales.product_name', 'sales.quantity',
+                'sales.selling_price', 'daraz_accounts.account_name',
+                DB::raw('sales.selling_price * sales.quantity as line_total'),
+            ]);
+
+        return [
+            'title' => 'Sales Income',
+            'subtitle' => 'Every delivered order that brought money in. Orders that are pending, cancelled or returned are not counted.',
+            'columns' => ['Date', 'Product', 'Shop', 'Qty', 'Price', 'Total'],
+            'rows' => $rows->map(fn ($row) => [
+                Carbon::parse($row->sold_date)->format('d M Y'),
+                $row->product_name,
+                $row->account_name ?? '—',
+                (string) $row->quantity,
+                $this->taka($row->selling_price),
+                $this->taka($row->line_total),
+            ])->all(),
+            'total' => (float) $rows->sum('line_total'),
+            'total_label' => 'Total sales income',
+        ];
+    }
+
+    /** What the delivered goods cost to buy — the other half of gross profit. */
+    private function costDetails(Carbon $from, Carbon $to): array
+    {
+        $rows = $this->salesQuery()
+            ->leftJoinSub($this->productCostQuery(), 'costs', 'costs.product_id', '=', 'sales.product_id')
+            ->leftJoin('products', 'products.id', '=', 'sales.product_id')
+            ->where('sales.status', SaleStatus::Delivered->value)
+            ->whereBetween('sales.sold_date', $this->bounds($from, $to))
+            ->orderByDesc('sales.sold_date')
+            ->limit(200)
+            ->get([
+                'sales.sold_date', 'sales.product_name', 'sales.quantity',
+                DB::raw('COALESCE(costs.unit_cost, products.default_purchase_price, 0) as unit_cost'),
+                DB::raw('sales.quantity * COALESCE(costs.unit_cost, products.default_purchase_price, 0) as line_cost'),
+            ]);
+
+        return [
+            'title' => 'Cost of Products Sold',
+            'subtitle' => 'What you originally paid for the goods in those delivered orders. The unit cost is the average of every real purchase of that product.',
+            'columns' => ['Date', 'Product', 'Qty', 'Cost each', 'Total cost'],
+            'rows' => $rows->map(fn ($row) => [
+                Carbon::parse($row->sold_date)->format('d M Y'),
+                $row->product_name,
+                (string) $row->quantity,
+                $this->taka($row->unit_cost),
+                $this->taka($row->line_cost),
+            ])->all(),
+            'total' => round((float) $rows->sum('line_cost'), 2),
+            'total_label' => 'Total product cost',
+        ];
+    }
+
+    /** Wallet credits (money given) or debits (money spent), row by row. */
+    private function ledgerDetails(Carbon $from, Carbon $to, ?int $employeeId, bool $credits): array
+    {
+        $rows = $this->ledger($from, $to, $employeeId)
+            ->join('users', 'users.id', '=', 'balance_transactions.user_id')
+            ->where('balance_transactions.amount', $credits ? '>' : '<', 0)
+            ->orderByDesc('balance_transactions.created_at')
+            ->limit(200)
+            ->get([
+                'balance_transactions.created_at', 'balance_transactions.type',
+                'balance_transactions.amount', 'balance_transactions.note', 'users.name',
+            ]);
+
+        return [
+            'title' => $credits ? 'Money Given to Staff' : 'Money Staff Spent',
+            'subtitle' => $credits
+                ? 'Every payment that went into a staff member’s wallet.'
+                : 'Every taka that left a staff wallet — buying products, or day-to-day expenses.',
+            'columns' => ['Date', 'Staff', 'Source', 'Note', 'Amount'],
+            'rows' => $rows->map(fn ($row) => [
+                Carbon::parse($row->created_at)->format('d M Y'),
+                $row->name,
+                self::LEDGER_LABELS[$row->type] ?? ucfirst(str_replace('_', ' ', $row->type)),
+                $row->note ?: '—',
+                $this->taka(abs((float) $row->amount)),
+            ])->all(),
+            'total' => (float) $rows->sum(fn ($row) => abs((float) $row->amount)),
+            'total_label' => $credits ? 'Total given' : 'Total spent',
+        ];
+    }
+
+    /** Day-to-day running costs — the expenses that come off gross profit. */
+    private function expenseDetails(Carbon $from, Carbon $to, ?int $employeeId): array
+    {
+        $rows = $this->expensesQuery()
+            ->join('users', 'users.id', '=', 'expenses.user_id')
+            ->when($employeeId, fn ($query) => $query->where('expenses.user_id', $employeeId))
+            ->whereBetween('expense_date', $this->bounds($from, $to))
+            ->orderByDesc('expense_date')
+            ->limit(200)
+            ->get([
+                'expenses.expense_date', 'expenses.category', 'expenses.description',
+                'expenses.amount', 'users.name',
+            ]);
+
+        return [
+            'title' => 'Running Expenses',
+            'subtitle' => 'Day-to-day costs that are not the products themselves — transport, food, office, and so on.',
+            'columns' => ['Date', 'Staff', 'Category', 'Description', 'Amount'],
+            'rows' => $rows->map(fn ($row) => [
+                Carbon::parse($row->expense_date)->format('d M Y'),
+                $row->name,
+                $row->category,
+                $row->description ?: '—',
+                $this->taka($row->amount),
+            ])->all(),
+            'total' => (float) $rows->sum('amount'),
+            'total_label' => 'Total running expenses',
+        ];
+    }
+
+    private function taka(float|string|null $value): string
+    {
+        return '৳ '.number_format((float) $value, 2);
     }
 
     /**
@@ -210,11 +447,24 @@ class DashboardService
         $orders = (int) $byStatus->sum('orders');
         $amount = (float) $byStatus->sum('amount');
 
+        // Plain-English meaning for each status, so the breakdown explains itself.
+        $meaning = [
+            'pending' => 'Ordered, not shipped yet',
+            'confirmed' => 'Confirmed, waiting to ship',
+            'send_to_courier' => 'Handed to the courier',
+            'shipped' => 'On the way — stock is reserved',
+            'delivered' => 'Customer got it — money is yours',
+            'returned' => 'Came back — money refunded',
+            'cancelled' => 'Called off — nothing owed',
+        ];
+
         $statuses = $byStatus->sortByDesc('amount')->map(fn ($row) => [
             'status' => $row->status,
             'label' => SaleStatus::tryFrom($row->status)?->label() ?? ucfirst($row->status),
+            'meaning' => $meaning[$row->status] ?? '',
             'badge' => SaleStatus::tryFrom($row->status)?->badgeClasses() ?? 'bg-slate-100 text-slate-700',
             'orders' => (int) $row->orders,
+            'quantity' => (int) $row->quantity,
             'amount' => (float) $row->amount,
             'percent' => $orders > 0 ? round((int) $row->orders / $orders * 100, 1) : 0.0,
         ])->values()->all();
@@ -273,6 +523,21 @@ class DashboardService
     // ── 5. Profit ─────────────────────────────────────────────────────────────
 
     /**
+     * Sales that actually reached the customer: delivered, plus returned (a return is
+     * only reachable FROM delivered, so those goods shipped too).
+     *
+     * Treating a returned order as if it never happened is wrong once returns can be
+     * partial: sell 5, take 2 back, and you still keep the money for 3. Every figure
+     * below therefore works from `quantity - returned_quantity` — the units the
+     * customer kept — rather than dropping the whole order.
+     */
+    private function fulfilledSales()
+    {
+        return $this->salesQuery()
+            ->whereIn('sales.status', [SaleStatus::Delivered->value, SaleStatus::Returned->value]);
+    }
+
+    /**
      * Cost of goods sold is priced from what the goods ACTUALLY cost: a weighted
      * average of every real purchase of that product (requisition purchases +
      * approved direct purchases), falling back to the product's default price when
@@ -280,23 +545,40 @@ class DashboardService
      */
     private function profit(Carbon $from, Carbon $to): array
     {
-        $revenueRow = $this->salesQuery()
-            ->where('status', SaleStatus::Delivered->value)
-            ->whereBetween('sold_date', $this->bounds($from, $to))
-            ->selectRaw('COALESCE(SUM(selling_price * quantity), 0) as revenue')
+        $sales = $this->fulfilledSales()
+            ->whereBetween('sales.sold_date', $this->bounds($from, $to))
+            ->selectRaw('
+                COALESCE(SUM(sales.selling_price * sales.quantity), 0) as gross_sales,
+                COALESCE(SUM(sales.selling_price * sales.returned_quantity), 0) as returned_value,
+                COALESCE(SUM(sales.selling_price * (sales.quantity - sales.returned_quantity)), 0) as revenue
+            ')
             ->first();
 
-        $revenue = (float) $revenueRow->revenue;
+        $grossSales = (float) $sales->gross_sales;
+        $returnedValue = (float) $sales->returned_value;
+        $revenue = (float) $sales->revenue;
 
-        $cogs = (float) $this->salesQuery()
+        // Cost of the units the customer KEPT. Goods that came back in good condition
+        // are on the shelf again, so they were never a cost.
+        $cogs = (float) $this->fulfilledSales()
             ->leftJoinSub($this->productCostQuery(), 'costs', 'costs.product_id', '=', 'sales.product_id')
             ->leftJoin('products', 'products.id', '=', 'sales.product_id')
-            ->where('sales.status', SaleStatus::Delivered->value)
             ->whereBetween('sales.sold_date', $this->bounds($from, $to))
             ->selectRaw(
-                'COALESCE(SUM(sales.quantity * COALESCE(costs.unit_cost, products.default_purchase_price, 0)), 0) as cogs'
+                'COALESCE(SUM((sales.quantity - sales.returned_quantity)
+                    * COALESCE(costs.unit_cost, products.default_purchase_price, 0)), 0) as cogs'
             )
             ->value('cogs');
+
+        // Damaged returns never went back on the shelf: the goods are gone AND the money
+        // was refunded. That is a straight loss, and it belongs nowhere else.
+        $damagedLoss = (float) $this->damagedReturnsQuery($from, $to)
+            ->leftJoinSub($this->productCostQuery(), 'costs', 'costs.product_id', '=', 'returns.product_id')
+            ->leftJoin('products', 'products.id', '=', 'returns.product_id')
+            ->selectRaw(
+                'COALESCE(SUM(returns.quantity * COALESCE(costs.unit_cost, products.default_purchase_price, 0)), 0) as loss'
+            )
+            ->value('loss');
 
         // Operational expenses = personal/office expenses + requisition-level costs.
         $expenses = (float) $this->expensesQuery()
@@ -314,18 +596,74 @@ class DashboardService
         // Round to the money scale: the weighted-average unit cost is a division, so the
         // raw sum carries float noise (…333331) that must not reach the UI.
         $cogs = round($cogs, 2);
+        $damagedLoss = round($damagedLoss, 2);
         $operating = round($expenses + $requisitionExpenses, 2);
-        $gross = round($revenue - $cogs, 2);
+        $gross = round($revenue - $cogs - $damagedLoss, 2);
         $net = round($gross - $operating, 2);
 
         return [
-            'revenue' => $revenue,
+            'gross_sales' => round($grossSales, 2),
+            'returned_value' => round($returnedValue, 2),
+            'revenue' => round($revenue, 2),
             'product_cost' => $cogs,
+            'damaged_loss' => $damagedLoss,
             'operating_expenses' => $operating,
             'gross_profit' => $gross,
             'net_profit' => $net,
             'gross_margin' => $revenue > 0 ? round($gross / $revenue * 100, 1) : 0.0,
             'net_margin' => $revenue > 0 ? round($net / $revenue * 100, 1) : 0.0,
+        ];
+    }
+
+    /** Returns that came back damaged — the goods were never restocked. */
+    private function damagedReturnsQuery(Carbon $from, Carbon $to)
+    {
+        return VoidedUsers::exclude(
+            DB::table('returns')
+                ->join('sales', 'sales.id', '=', 'returns.sale_id')
+                ->where('returns.condition', 'damaged')
+                ->whereBetween('returns.return_date', $this->bounds($from, $to)),
+            'sales.created_by',
+        );
+    }
+
+    // ── Returns, as their own line ────────────────────────────────────────────
+
+    /**
+     * Everything that came back: how much, worth how much, and how much was salvageable.
+     *
+     * Quantity and value are read from `sales.returned_quantity`, NOT from the `returns`
+     * table, because a sale can reach "returned" two ways: through ReturnService (which
+     * writes a returns row) or through the sales Action menu (which does not). Deriving
+     * this card from the same column the profit line uses is the only way the two can
+     * never disagree. The `returns` table is used solely for the good/damaged split,
+     * which is the one thing only it knows.
+     */
+    private function returns(Carbon $from, Carbon $to, float $grossSales): array
+    {
+        $row = $this->salesQuery()
+            ->where('sales.returned_quantity', '>', 0)
+            ->whereBetween('sales.sold_date', $this->bounds($from, $to))
+            ->selectRaw('
+                COUNT(*) as orders,
+                COALESCE(SUM(sales.returned_quantity), 0) as quantity,
+                COALESCE(SUM(sales.returned_quantity * sales.selling_price), 0) as value
+            ')
+            ->first();
+
+        $damaged = (int) $this->damagedReturnsQuery($from, $to)->sum('returns.quantity');
+        $quantity = (int) $row->quantity;
+        $value = (float) $row->value;
+
+        return [
+            'orders' => (int) $row->orders,
+            'quantity' => $quantity,
+            'value' => round($value, 2),
+            // Anything not explicitly logged as damaged went back on the shelf.
+            'good_quantity' => max(0, $quantity - $damaged),
+            'damaged_quantity' => $damaged,
+            // Share of everything you sold that came back — the number to watch.
+            'rate' => $grossSales > 0 ? round($value / $grossSales * 100, 1) : 0.0,
         ];
     }
 
