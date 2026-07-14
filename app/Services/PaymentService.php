@@ -24,41 +24,36 @@ class PaymentService
                 throw ValidationException::withMessages(['requisition_id' => 'Only approved requisitions can receive payment.']);
             }
 
-            // Total payments may never exceed the approved amount. Safe against races:
-            // the requisition is row-locked above and `payments` is loaded inside that
-            // lock, so a concurrent payment cannot slip in between the check and insert.
-            $approved = (float) $locked->approved_amount;
-            $alreadyPaid = (float) $locked->payments->sum('amount');
-            $remaining = round($approved - $alreadyPaid, 2);
+            $amount = round((float) $data['amount'], 2);
 
-            if (round((float) $data['amount'], 2) > $remaining) {
-                throw ValidationException::withMessages([
-                    'amount' => $remaining <= 0
-                        ? 'This requisition is already fully paid.'
-                        : 'Payment exceeds the approved amount. Remaining: '.number_format($remaining, 2),
-                ]);
-            }
+            // `payments` is loaded inside the row lock above, so this is the paid total
+            // before the row we are about to insert.
+            $paidBefore = (float) $locked->payments->sum('amount');
+            $excess = round(($paidBefore + $amount) - (float) $locked->approved_amount, 2);
 
             $payment = Payment::create([
                 'requisition_id' => $locked->id,
                 'paid_to' => $locked->employee_id,
                 'paid_by' => $admin->id,
-                'amount' => $data['amount'],
+                'amount' => $amount,
                 'payment_method' => $data['payment_method'],
                 'payment_date' => $data['payment_date'],
                 'reference' => $data['reference'] ?? null,
                 'note' => $data['note'] ?? null,
             ]);
 
-            // Credit the paid amount to the employee's balance (single source of
-            // truth = money actually paid out). Mirrors StockService usage.
+            // Credit the full paid amount to the employee's balance (single source of
+            // truth = money actually handed over). Paying past the approved amount is
+            // allowed on purpose: the surplus just stays in the wallet as spendable
+            // balance instead of being rejected.
             $this->balanceService->credit(
                 $locked->employee,
-                (float) $data['amount'],
+                $amount,
                 $payment,
                 $admin->id,
                 'credit_payment',
-                'Payment for requisition '.$locked->requisition_number,
+                'Payment for requisition '.$locked->requisition_number
+                    .($excess > 0 ? ' (includes '.number_format($excess, 2).' above approved, kept as balance)' : ''),
             );
 
             $this->auditService->record('payment.created', $payment, null, $payment->toArray());

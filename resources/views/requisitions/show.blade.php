@@ -296,11 +296,20 @@
 
             {{-- Payment form (admin, approved) --}}
             @if($isAdmin && $requisition->status === 'approved')
+            @php $remainingAmt = round((float) $requisition->approved_amount - $paidAmt, 2); @endphp
             <form method="post" action="{{ route('requisitions.payments.store', $requisition) }}"
                   class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm space-y-3">
                 @csrf
                 <h2 class="text-[13px] font-bold text-[#17211c]">Record Payment</h2>
-                <input name="amount" type="number" step="0.01" placeholder="Amount" required
+                <p class="text-[11px] text-slate-400">
+                    @if($remainingAmt > 0)
+                        Remaining ৳ {{ number_format($remainingAmt, 2) }}.
+                    @else
+                        Approved amount is fully paid.
+                    @endif
+                    Anything paid above this is credited to {{ $requisition->employee->name }}'s balance.
+                </p>
+                <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required
                        class="ppp-field">
                 <select name="payment_method" required
                         class="ppp-field">
