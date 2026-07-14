@@ -173,6 +173,12 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->post('/users', [UserController::class, 'store'])->name('users.store');
     Route::middleware('permission:users.update')
         ->put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::middleware('permission:users.void')->group(function () {
+        Route::post('/users/{user}/void', [UserController::class, 'void'])->name('users.void');
+        Route::post('/users/{user}/restore', [UserController::class, 'restore'])->name('users.restore');
+    });
+    Route::middleware('permission:users.delete')
+        ->delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
     // ── Roles & Permissions ─────────────────────────────────────────
     Route::middleware('permission:roles.create')->group(function () {

@@ -7,6 +7,7 @@ use App\Models\BalanceTransaction;
 use App\Models\DarazAccount;
 use App\Models\DirectPurchase;
 use App\Models\DirectPurchaseItem;
+use App\Models\Expense;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductReturn;
@@ -18,6 +19,7 @@ use App\Models\SaleStatusHistory;
 use App\Models\StockAdjustment;
 use App\Models\StockMovement;
 use App\Models\Supplier;
+use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Support\Facades\DB;
 
@@ -39,6 +41,7 @@ class DeletionService
     public function __construct(
         private StockService $stockService,
         private BalanceService $balanceService,
+        private ExpenseService $expenseService,
     ) {
     }
 
@@ -216,6 +219,136 @@ class DeletionService
             $this->purgeLedger(DarazAccount::class, [$account->id]);
             $account->forceDelete(); // bypass soft delete — this is a real purge.
         }, 3);
+    }
+
+    /**
+     * What a user purge would destroy. Rendered in the confirmation dialog so nobody
+     * clicks Delete without seeing the blast radius first.
+     */
+    public function userImpact(User $user): array
+    {
+        $saleIds = Sale::where('created_by', $user->id)->pluck('id');
+
+        return [
+            'sales' => $saleIds->count(),
+            'sale_revenue' => (float) Sale::whereIn('id', $saleIds)
+                ->where('status', 'delivered')
+                ->selectRaw('COALESCE(SUM(selling_price * quantity), 0) as t')->value('t'),
+            'returns' => ProductReturn::whereIn('sale_id', $saleIds)->count(),
+            'requisitions' => Requisition::where('employee_id', $user->id)->count(),
+            'payments' => Payment::where('paid_to', $user->id)->count(),
+            'direct_purchases' => DirectPurchase::where('employee_id', $user->id)->count(),
+            'expenses' => Expense::where('user_id', $user->id)->count(),
+            'ledger_rows' => BalanceTransaction::where('user_id', $user->id)->count(),
+            'balance' => (float) $user->balance,
+        ];
+    }
+
+    /**
+     * Hard-purge a user and everything that belongs to them.
+     *
+     * Three different things happen, and the difference matters:
+     *
+     *   DELETED  — records the user OWNS: their sales, requisitions, direct purchases,
+     *              expenses and wallet ledger. Each goes through the reversal-aware
+     *              delete methods above, so stock and balances unwind correctly.
+     *   REVERSED — records the user RECORDED FOR SOMEBODY ELSE (an admin who paid a
+     *              colleague's requisition, or logged their expense). Those belong to
+     *              the other employee, so the money is reversed off THEIR wallet before
+     *              the row goes, otherwise their balance would silently drift.
+     *   DETACHED — audit-trail columns on company records that are not the user's
+     *              (who shipped a sale, who adjusted stock). Those are nullable, so the
+     *              record survives with the author cleared.
+     */
+    public function deleteUser(User $user, User $actor): void
+    {
+        DB::transaction(function () use ($user, $actor) {
+            // ── 1. Records the user owns, via the reversal-aware paths ──────────
+            Sale::where('created_by', $user->id)->get()
+                ->each(fn (Sale $sale) => $this->deleteSale($sale));
+
+            Requisition::where('employee_id', $user->id)->get()
+                ->each(fn (Requisition $requisition) => $this->deleteRequisition($requisition));
+
+            DirectPurchase::where('employee_id', $user->id)->get()
+                ->each(fn (DirectPurchase $purchase) => $this->deleteDirectPurchase($purchase));
+
+            // ── 2. Things the user recorded FOR OTHER employees ─────────────────
+            // Reverse them off the other employee's wallet, then drop the row.
+            $this->reverseForeignPayments($user);
+            $this->reverseForeignExpenses($user, $actor);
+
+            // ── 3. The user's own remaining money records ───────────────────────
+            // Expenses cascade on user delete, but that would leave the other side of
+            // the ledger behind, so purge both explicitly while we still can.
+            $ownExpenseIds = Expense::where('user_id', $user->id)->pluck('id')->all();
+            $this->purgeLedger(Expense::class, $ownExpenseIds);
+            Expense::where('user_id', $user->id)->delete();
+
+            // The wallet dies with the user; its ledger goes with it.
+            BalanceTransaction::where('user_id', $user->id)->delete();
+
+            // ── 4. Detach the audit-trail columns (all nullable) ────────────────
+            foreach ([
+                [Sale::class, 'status_updated_by'],
+                [ProductReturn::class, 'created_by'],
+                [SaleStatusHistory::class, 'created_by'],
+                [StockMovement::class, 'created_by'],
+                [StockAdjustment::class, 'created_by'],
+                [BalanceTransaction::class, 'created_by'],
+                [RequisitionItem::class, 'purchased_by'],
+                [Requisition::class, 'reviewed_by'],
+                [AuditLog::class, 'user_id'],
+            ] as [$model, $column]) {
+                $model::where($column, $user->id)->update([$column => null]);
+            }
+
+            DirectPurchase::where('created_by', $user->id)->update(['created_by' => null]);
+            DirectPurchase::where('approved_by', $user->id)->update(['approved_by' => null]);
+
+            // requisition_expenses.created_by is NOT NULL and carries no money of its
+            // own (it never touches a wallet), so the row simply goes.
+            RequisitionExpense::where('created_by', $user->id)->delete();
+
+            $this->purgeLedger(User::class, [$user->id]);
+            $user->delete();
+        }, 3);
+    }
+
+    /** Payments this user recorded into SOMEBODY ELSE's wallet — debit it back. */
+    private function reverseForeignPayments(User $user): void
+    {
+        $payments = Payment::with('requisition.employee')
+            ->where('paid_by', $user->id)
+            ->orWhere('paid_to', $user->id)
+            ->get();
+
+        foreach ($payments as $payment) {
+            $employee = $payment->requisition?->employee;
+
+            if ($employee && $employee->id !== $user->id && (float) $payment->amount > 0) {
+                // allowNegative: the money really was paid out; if their wallet is empty
+                // the resulting negative is an honest debt, not a validation failure.
+                $this->balanceService->debit(
+                    $employee, (float) $payment->amount, $payment, null,
+                    'debit_reversal', 'Reversal — deleted user '.$user->name,
+                    allowNegative: true,
+                );
+            }
+
+            $this->purgeLedger(Payment::class, [$payment->id]);
+            $payment->delete();
+        }
+    }
+
+    /** Expenses this user logged against SOMEBODY ELSE's wallet — refund it. */
+    private function reverseForeignExpenses(User $user, User $actor): void
+    {
+        Expense::with('user')
+            ->where('created_by', $user->id)
+            ->where('user_id', '!=', $user->id)
+            ->get()
+            ->each(fn (Expense $expense) => $this->expenseService->remove($expense, $actor));
     }
 
     public function deleteSupplier(Supplier $supplier): void

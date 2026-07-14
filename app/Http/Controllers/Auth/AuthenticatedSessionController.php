@@ -23,6 +23,12 @@ class AuthenticatedSessionController extends Controller
             throw ValidationException::withMessages(['email' => 'Invalid email or password.']);
         }
 
+        if ($request->user()->isVoided()) {
+            Auth::logout();
+
+            throw ValidationException::withMessages(['email' => 'This account has been voided.']);
+        }
+
         if (! $request->user()->isActive()) {
             Auth::logout();
 

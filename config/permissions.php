@@ -25,6 +25,7 @@ return [
         'view'    => 'View / Menu',
         'create'  => 'Create',
         'update'  => 'Update',
+        'void'    => 'Void / Restore',
         'delete'  => 'Delete',
         'export'  => 'Export',
         'approve' => 'Approve',
@@ -108,7 +109,7 @@ return [
         'users' => [
             'label'   => 'Users',
             'group'   => 'Administration',
-            'actions' => ['view', 'create', 'update'],
+            'actions' => ['view', 'create', 'update', 'void', 'delete'],
             'menu'    => ['route' => 'users.index', 'label' => 'Users', 'parent' => 'Admin Panel'],
         ],
         'roles' => [

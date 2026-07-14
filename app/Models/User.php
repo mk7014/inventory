@@ -4,6 +4,8 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -58,12 +60,39 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'balance' => 'decimal:2',
+            'voided_at' => 'datetime',
         ];
     }
 
     public function role()
     {
         return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * A voided user is excluded from every financial calculation and cannot log in.
+     * Their records are kept for audit — voiding is reversible, deleting is not.
+     */
+    public function isVoided(): bool
+    {
+        return $this->voided_at !== null;
+    }
+
+    #[Scope]
+    protected function voided(Builder $query): void
+    {
+        $query->whereNotNull('voided_at');
+    }
+
+    #[Scope]
+    protected function notVoided(Builder $query): void
+    {
+        $query->whereNull('voided_at');
+    }
+
+    public function voidedBy()
+    {
+        return $this->belongsTo(self::class, 'voided_by');
     }
 
     /**

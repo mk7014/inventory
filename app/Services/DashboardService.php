@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\SaleStatus;
 use App\Models\Product;
+use App\Support\VoidedUsers;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -43,7 +44,15 @@ class DashboardService
      */
     public function overview(Carbon $from, Carbon $to, ?int $employeeId = null): array
     {
-        $key = sprintf('dashboard:%s:%s:%s', $employeeId ?? 'all', $from->toDateString(), $to->toDateString());
+        // The voided signature is part of the key: voiding a user must change the
+        // numbers immediately, not once the TTL happens to lapse.
+        $key = sprintf(
+            'dashboard:%s:%s:%s:%s',
+            $employeeId ?? 'all',
+            $from->toDateString(),
+            $to->toDateString(),
+            VoidedUsers::signature(),
+        );
 
         // Short TTL: the dashboard is read constantly but a minute of staleness on an
         // executive summary is harmless, and it keeps the aggregate scans off the hot path.
@@ -128,16 +137,47 @@ class DashboardService
 
     private function ledger(Carbon $from, Carbon $to, ?int $employeeId)
     {
-        return DB::table('balance_transactions')
-            ->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
-            ->when($employeeId, fn ($query) => $query->where('user_id', $employeeId));
+        return VoidedUsers::exclude(
+            DB::table('balance_transactions')
+                ->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+                ->when($employeeId, fn ($query) => $query->where('user_id', $employeeId)),
+            'balance_transactions.user_id',
+        );
+    }
+
+    /**
+     * Inclusive [start-of-day, end-of-day] bounds for a date column.
+     *
+     * The end bound carries a time component on purpose: a bare '2026-07-14' upper
+     * bound excludes a row stored as '2026-07-14 00:00:00', which is exactly how a
+     * date lands in SQLite. MySQL compares a DATE column against either form happily,
+     * so this is correct on both.
+     */
+    private function bounds(Carbon $from, Carbon $to): array
+    {
+        return [
+            $from->copy()->startOfDay()->toDateTimeString(),
+            $to->copy()->endOfDay()->toDateTimeString(),
+        ];
+    }
+
+    /** Sales, minus anything created by a voided user. The base for every sales figure. */
+    private function salesQuery()
+    {
+        return VoidedUsers::exclude(DB::table('sales'), 'sales.created_by');
+    }
+
+    /** Expenses, minus anything belonging to a voided user. */
+    private function expensesQuery()
+    {
+        return VoidedUsers::exclude(DB::table('expenses'), 'expenses.user_id');
     }
 
     /** Category-level detail for the operational expenses (the `expenses` table). */
     private function expenseCategories(Carbon $from, Carbon $to, ?int $employeeId): array
     {
-        $rows = DB::table('expenses')
-            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+        $rows = $this->expensesQuery()
+            ->whereBetween('expense_date', $this->bounds($from, $to))
             ->when($employeeId, fn ($query) => $query->where('user_id', $employeeId))
             ->selectRaw('category, COUNT(*) as transactions, SUM(amount) as total')
             ->groupBy('category')
@@ -161,8 +201,8 @@ class DashboardService
 
     private function sales(Carbon $from, Carbon $to): array
     {
-        $byStatus = DB::table('sales')
-            ->whereBetween('sold_date', [$from->toDateString(), $to->toDateString()])
+        $byStatus = $this->salesQuery()
+            ->whereBetween('sold_date', $this->bounds($from, $to))
             ->selectRaw('status, COUNT(*) as orders, SUM(quantity) as quantity, SUM(selling_price * quantity) as amount')
             ->groupBy('status')
             ->get();
@@ -192,7 +232,7 @@ class DashboardService
     /** Today / this week / this month / this year revenue, in one grouped pass. */
     private function salesPeriods(): array
     {
-        $rows = DB::table('sales')
+        $rows = $this->salesQuery()
             ->where('status', SaleStatus::Delivered->value)
             ->where('sold_date', '>=', now()->startOfYear()->toDateString())
             ->selectRaw('sold_date, SUM(selling_price * quantity) as amount')
@@ -215,9 +255,9 @@ class DashboardService
 
     private function delivered(Carbon $from, Carbon $to, int $totalOrders, int $totalQuantity): array
     {
-        $row = DB::table('sales')
+        $row = $this->salesQuery()
             ->where('status', SaleStatus::Delivered->value)
-            ->whereBetween('sold_date', [$from->toDateString(), $to->toDateString()])
+            ->whereBetween('sold_date', $this->bounds($from, $to))
             ->selectRaw('COUNT(*) as orders, COALESCE(SUM(quantity), 0) as quantity, COALESCE(SUM(selling_price * quantity), 0) as revenue')
             ->first();
 
@@ -240,32 +280,36 @@ class DashboardService
      */
     private function profit(Carbon $from, Carbon $to): array
     {
-        $revenueRow = DB::table('sales')
+        $revenueRow = $this->salesQuery()
             ->where('status', SaleStatus::Delivered->value)
-            ->whereBetween('sold_date', [$from->toDateString(), $to->toDateString()])
+            ->whereBetween('sold_date', $this->bounds($from, $to))
             ->selectRaw('COALESCE(SUM(selling_price * quantity), 0) as revenue')
             ->first();
 
         $revenue = (float) $revenueRow->revenue;
 
-        $cogs = (float) DB::table('sales')
+        $cogs = (float) $this->salesQuery()
             ->leftJoinSub($this->productCostQuery(), 'costs', 'costs.product_id', '=', 'sales.product_id')
             ->leftJoin('products', 'products.id', '=', 'sales.product_id')
             ->where('sales.status', SaleStatus::Delivered->value)
-            ->whereBetween('sales.sold_date', [$from->toDateString(), $to->toDateString()])
+            ->whereBetween('sales.sold_date', $this->bounds($from, $to))
             ->selectRaw(
                 'COALESCE(SUM(sales.quantity * COALESCE(costs.unit_cost, products.default_purchase_price, 0)), 0) as cogs'
             )
             ->value('cogs');
 
         // Operational expenses = personal/office expenses + requisition-level costs.
-        $expenses = (float) DB::table('expenses')
-            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+        $expenses = (float) $this->expensesQuery()
+            ->whereBetween('expense_date', $this->bounds($from, $to))
             ->sum('amount');
 
-        $requisitionExpenses = (float) DB::table('requisition_expenses')
-            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
-            ->sum('amount');
+        // A requisition expense belongs to whoever owns the requisition.
+        $requisitionExpenses = (float) VoidedUsers::exclude(
+            DB::table('requisition_expenses')
+                ->join('requisitions', 'requisitions.id', '=', 'requisition_expenses.requisition_id')
+                ->whereBetween('requisition_expenses.expense_date', $this->bounds($from, $to)),
+            'requisitions.employee_id',
+        )->sum('requisition_expenses.amount');
 
         // Round to the money scale: the weighted-average unit cost is a division, so the
         // raw sum carries float noise (…333331) that must not reach the UI.
@@ -288,15 +332,22 @@ class DashboardService
     /** Weighted-average unit cost per product across every real purchase. */
     private function productCostQuery()
     {
-        $requisitionPurchases = DB::table('requisition_items')
-            ->whereNotNull('purchased_at')
-            ->whereNotNull('product_id')
-            ->selectRaw('product_id, quantity, quantity * purchase_price as cost');
+        // A voided user's purchases leave the cost basis entirely, so the weighted
+        // average reflects only the buying that still counts.
+        $requisitionPurchases = VoidedUsers::exclude(
+            DB::table('requisition_items')
+                ->join('requisitions', 'requisitions.id', '=', 'requisition_items.requisition_id')
+                ->whereNotNull('requisition_items.purchased_at')
+                ->whereNotNull('requisition_items.product_id'),
+            'requisitions.employee_id',
+        )->selectRaw('requisition_items.product_id, requisition_items.quantity, requisition_items.quantity * requisition_items.purchase_price as cost');
 
-        $directPurchases = DB::table('direct_purchase_items')
-            ->join('direct_purchases', 'direct_purchases.id', '=', 'direct_purchase_items.direct_purchase_id')
-            ->where('direct_purchases.status', 'approved')
-            ->selectRaw('direct_purchase_items.product_id, direct_purchase_items.quantity, direct_purchase_items.quantity * direct_purchase_items.purchase_price as cost');
+        $directPurchases = VoidedUsers::exclude(
+            DB::table('direct_purchase_items')
+                ->join('direct_purchases', 'direct_purchases.id', '=', 'direct_purchase_items.direct_purchase_id')
+                ->where('direct_purchases.status', 'approved'),
+            'direct_purchases.employee_id',
+        )->selectRaw('direct_purchase_items.product_id, direct_purchase_items.quantity, direct_purchase_items.quantity * direct_purchase_items.purchase_price as cost');
 
         return DB::query()
             ->fromSub($requisitionPurchases->unionAll($directPurchases), 'purchases')
@@ -312,28 +363,28 @@ class DashboardService
         $start = now()->copy()->subMonths(11)->startOfMonth();
 
         $revenue = $this->monthlyMap(
-            DB::table('sales')
+            $this->salesQuery()
                 ->where('status', SaleStatus::Delivered->value)
                 ->where('sold_date', '>=', $start->toDateString())
-                ->selectRaw("DATE_FORMAT(sold_date, '%Y-%m') as bucket, SUM(selling_price * quantity) as total")
+                ->selectRaw($this->monthBucket('sold_date')." as bucket, SUM(selling_price * quantity) as total")
                 ->groupBy('bucket')
                 ->get()
         );
 
         // Purchase spend = what left wallets to buy goods, from the ledger.
         $purchases = $this->monthlyMap(
-            DB::table('balance_transactions')
+            VoidedUsers::exclude(DB::table('balance_transactions'), 'balance_transactions.user_id')
                 ->whereIn('type', ['debit_purchase', 'debit_direct_purchase'])
                 ->where('created_at', '>=', $start)
-                ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as bucket, SUM(-amount) as total")
+                ->selectRaw($this->monthBucket('created_at')." as bucket, SUM(-amount) as total")
                 ->groupBy('bucket')
                 ->get()
         );
 
         $expenses = $this->monthlyMap(
-            DB::table('expenses')
+            $this->expensesQuery()
                 ->where('expense_date', '>=', $start->toDateString())
-                ->selectRaw("DATE_FORMAT(expense_date, '%Y-%m') as bucket, SUM(amount) as total")
+                ->selectRaw($this->monthBucket('expense_date')." as bucket, SUM(amount) as total")
                 ->groupBy('bucket')
                 ->get()
         );
@@ -367,9 +418,9 @@ class DashboardService
         $start = $from->copy()->max($to->copy()->subDays(59));
 
         $rows = $this->dailyMap(
-            DB::table('sales')
+            $this->salesQuery()
                 ->where('status', SaleStatus::Delivered->value)
-                ->whereBetween('sold_date', [$start->toDateString(), $to->toDateString()])
+                ->whereBetween('sold_date', $this->bounds($start, $to))
                 ->selectRaw('sold_date as bucket, SUM(selling_price * quantity) as total')
                 ->groupBy('bucket')
                 ->get()
@@ -384,6 +435,18 @@ class DashboardService
         }
 
         return ['labels' => $labels, 'revenue' => $series];
+    }
+
+    /**
+     * The "YYYY-MM" bucket expression for the active driver. MySQL runs production;
+     * the test suite runs SQLite, which has no DATE_FORMAT.
+     */
+    private function monthBucket(string $column): string
+    {
+        return match (DB::getDriverName()) {
+            'sqlite' => "strftime('%Y-%m', {$column})",
+            default => "DATE_FORMAT({$column}, '%Y-%m')",
+        };
     }
 
     private function monthlyMap(Collection $rows): array
