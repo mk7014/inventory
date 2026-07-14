@@ -26,7 +26,7 @@ class DashboardController extends Controller
         $validated = $request->validate([
             'metric' => ['required', Rule::in([
                 'revenue', 'cost', 'returns', 'orders', 'pending_delivery',
-                'funds', 'spend', 'expenses',
+                'funds', 'spend', 'expenses', 'remaining',
                 'requested', 'purchased', 'awaiting_purchase', 'sold', 'stock',
             ])],
             'status' => ['nullable', Rule::enum(SaleStatus::class)],
@@ -90,6 +90,7 @@ class DashboardController extends Controller
             'delivered' => $data['delivered'],
             'pendingDelivery' => $data['pendingDelivery'],
             'pipeline' => $data['pipeline'],
+            'wallets' => $data['wallets'],
             'returns' => $data['returns'],
             'profit' => $data['profit'],
             'trend' => $data['trend'],

@@ -59,36 +59,42 @@
 
     @else
 
-    {{-- ── Headline KPIs ──────────────────────────────────────────── --}}
-    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {{-- ── Segment 1: sales & profit ──────────────────────────────── --}}
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
 
-        {{-- Profit you keep (feature card) — jumps to the plain-English breakdown below --}}
+        {{-- Profit you keep (feature card). Mirrors the KPI component's internal rhythm
+             — same min-h label, same mt-auto footer — so it lines up with its neighbours. --}}
         <a href="#profit-explainer"
-           class="group relative block overflow-hidden rounded-2xl p-5 text-white shadow-sm ring-1 ring-indigo-900/10
-                  transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+           class="group relative flex h-full flex-col overflow-hidden rounded-2xl p-5 text-white shadow-sm
+                  ring-1 ring-indigo-900/10 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
            style="background: linear-gradient(135deg,#4f46e5 0%,#3730a3 100%);">
             <div class="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/10"></div>
             <div class="absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-black/10"></div>
-            <div class="relative">
-                <div class="flex items-center gap-2">
-                    <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                        </svg>
-                    </span>
-                    <p class="text-[11px] font-semibold uppercase tracking-wider text-indigo-50/80">Profit You Keep</p>
-                </div>
-                <p class="mt-3 text-2xl font-bold tracking-tight">{{ $money($profit['net_profit']) }}</p>
-                <p class="mt-1 text-[11px] font-medium text-indigo-50/70">
-                    What is left after everything is paid
+
+            <div class="relative flex items-start justify-between gap-3">
+                <p class="min-h-8 text-[11px] font-semibold uppercase leading-4 tracking-wider text-indigo-50/80">
+                    Profit You Keep
                 </p>
-                <p class="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-white/90 underline-offset-2 group-hover:underline">
-                    See how this is calculated
-                    <svg class="h-3 w-3 transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7"/>
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                     </svg>
-                </p>
+                </span>
             </div>
+
+            <p class="relative mt-1 truncate text-xl font-bold tracking-tight">{{ $money($profit['net_profit']) }}</p>
+            <p class="relative mt-1 min-h-8 text-[11px] font-medium leading-4 text-indigo-50/70">
+                What is left after everything is paid
+            </p>
+
+            <p class="relative mt-auto inline-flex items-center gap-1 pt-2.5 text-[11px] font-semibold text-white/90
+                      underline-offset-2 group-hover:underline">
+                <span>See how this is calculated</span>
+                <svg class="h-3 w-3 shrink-0 transition-transform group-hover:translate-y-0.5"
+                     fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7"/>
+                </svg>
+            </p>
         </a>
 
         <x-dashboard.kpi label="Delivered Orders" :value="$money($profit['revenue'])" tone="emerald"
@@ -101,17 +107,6 @@
                          metric="pending_delivery"
                          icon="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 
-        <x-dashboard.kpi label="Total Investment" :value="$money($funds['total'])" tone="sky"
-                         :hint="$funds['transactions'].' payment(s) into staff wallets'" metric="funds"
-                         icon="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
-    </div>
-
-    {{-- Second row --}}
-    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <x-dashboard.kpi label="Staff Expenses" :value="$money($spend['total'])" tone="rose"
-                         :hint="$spend['transactions'].' transaction(s)'" metric="spend"
-                         icon="M19 14l-7 7m0 0l-7-7m7 7V3" />
-
         <x-dashboard.kpi label="Money Given Back (Returns)" :value="$money($returns['value'])" tone="amber"
                          :hint="$returns['quantity'].' item(s) came back · '.$returns['rate'].'% of sales'" metric="returns"
                          icon="M3 10h10a4 4 0 014 4v1M3 10l4-4M3 10l4 4" />
@@ -119,11 +114,49 @@
         <x-dashboard.kpi label="Damaged Returns (loss)" :value="$money($profit['damaged_loss'])" tone="rose"
                          :hint="$returns['damaged_quantity'].' item(s) could not be resold'" metric="returns"
                          icon="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
-
-        <x-dashboard.kpi label="Running Costs" :value="$money($profit['operating_expenses'])" tone="amber"
-                         hint="Transport, food, office and so on" metric="expenses"
-                         icon="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
     </div>
+
+    {{-- ── Segment 2: money in and out of the business ───────────────
+         No wrapping box: a boxed section would inset its cards by its own padding and
+         they would no longer line up with the KPI row above. The heading plus the rule
+         below it separate the segment without shifting anything. --}}
+    <section class="mb-6">
+        <div class="mb-4 flex items-center gap-2.5 border-b border-slate-200/70 pb-3">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 9v1m9-5a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </span>
+            <div>
+                <h2 class="text-[14px] font-bold text-[#17211c]">Money You Put In &amp; What It Went On</h2>
+                <p class="text-[11px] text-slate-400">
+                    Cash handed to staff, and how it was spent. Click any card to see who and what for.
+                </p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <x-dashboard.kpi label="Total Investment" :value="$money($funds['total'])" tone="sky"
+                             :hint="$funds['transactions'].' payment(s) into staff wallets'" metric="funds"
+                             icon="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
+
+            <x-dashboard.kpi label="Staff Expenses" :value="$money($spend['total'])" tone="rose"
+                             :hint="$spend['transactions'].' transaction(s)'" metric="spend"
+                             icon="M19 14l-7 7m0 0l-7-7m7 7V3" />
+
+            <x-dashboard.kpi label="Running Costs" :value="$money($profit['operating_expenses'])" tone="amber"
+                             hint="Transport, food, office and so on" metric="expenses"
+                             icon="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+
+            {{-- Live wallet balance, not a period total — see DashboardService::wallets(). --}}
+            <x-dashboard.kpi label="Remaining With Staff" :value="$money($wallets['total'])" tone="emerald"
+                             :hint="$wallets['holders'].' staff holding unspent cash right now'
+                                    .($wallets['owed'] > 0 ? ' · company owes '.$money($wallets['owed']) : '')"
+                             metric="remaining"
+                             icon="M21 12a2 2 0 00-2-2H5a2 2 0 00-2 2m18 0v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5m18 0V9a2 2 0 00-2-2H5a2 2 0 00-2 2v3m8 0h2" />
+        </div>
+    </section>
 
     {{-- ── Product journey: requested → bought → sold → left on the shelf ──── --}}
     <section class="mb-6 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">

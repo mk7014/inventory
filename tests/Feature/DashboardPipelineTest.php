@@ -249,6 +249,55 @@ class DashboardPipelineTest extends TestCase
         );
     }
 
+    public function test_remaining_is_the_live_wallet_balance_not_a_period_total(): void
+    {
+        $admin = $this->admin();
+        $rahim = $this->employee('Rahim', 'rahim@example.com');
+
+        // Given 900 last year, spent 200 last year, given 300 this month.
+        // Remaining = 1000 — regardless of which month the dashboard is filtered to.
+        DB::transaction(fn () => app(BalanceService::class)->credit($rahim, 900, null, $admin->id, 'credit_payment'));
+        DB::transaction(fn () => app(BalanceService::class)->debit($rahim, 200, null, $admin->id, 'debit_expense'));
+        DB::transaction(fn () => app(BalanceService::class)->credit($rahim, 300, null, $admin->id, 'credit_payment'));
+
+        Cache::flush();
+        $wallets = app(DashboardService::class)
+            ->overview(now()->startOfMonth(), now(), null)['wallets'];
+
+        $this->assertSame(1000.0, $wallets['total']);
+        $this->assertSame(1, $wallets['holders']);
+        $this->assertSame(0.0, $wallets['owed']);
+
+        // It must equal what the ledger says is left — this is the invariant that makes
+        // the number trustworthy: everything given, minus everything spent.
+        $ledger = (float) DB::table('balance_transactions')->sum('amount');
+        $this->assertSame($ledger, $wallets['total']);
+
+        // And the drill-down must add up to the same figure.
+        $drill = app(DashboardService::class)
+            ->details('remaining', now()->startOfMonth(), now(), null);
+        $this->assertSame($wallets['total'], $drill['total']);
+        $this->assertCount(1, $drill['rows']);
+    }
+
+    public function test_a_negative_wallet_is_reported_as_money_the_company_owes(): void
+    {
+        $admin = $this->admin();
+        $rahim = $this->employee('Rahim', 'rahim@example.com');
+
+        // The employee paid 400 out of their own pocket with an empty wallet.
+        DB::transaction(fn () => app(BalanceService::class)->debit(
+            $rahim, 400, null, $admin->id, 'debit_direct_purchase', null, allowNegative: true,
+        ));
+
+        Cache::flush();
+        $wallets = app(DashboardService::class)
+            ->overview(now()->startOfMonth(), now(), null)['wallets'];
+
+        $this->assertSame(-400.0, $wallets['total']);
+        $this->assertSame(400.0, $wallets['owed']);
+    }
+
     public function test_every_pipeline_drilldown_is_reachable_over_http(): void
     {
         $admin = $this->admin();

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\SaleStatus;
 use App\Models\Product;
+use App\Models\User;
 use App\Support\VoidedUsers;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -69,6 +70,7 @@ class DashboardService
                 'delivered' => $this->delivered($from, $to, $sales['orders'], $sales['quantity']),
                 'pendingDelivery' => $this->pendingDelivery($from, $to),
                 'pipeline' => $this->pipeline(),
+                'wallets' => $this->wallets(),
                 'returns' => $this->returns($from, $to, $profit['gross_sales']),
                 'profit' => $profit,
                 'trend' => $this->monthlyTrend(),
@@ -171,6 +173,7 @@ class DashboardService
             'funds' => $this->ledgerDetails($from, $to, $employeeId, credits: true),
             'spend' => $this->ledgerDetails($from, $to, $employeeId, credits: false),
             'expenses' => $this->expenseDetails($from, $to, $employeeId),
+            'remaining' => $this->walletDetails(),
             'requested' => $this->requisitionLineDetails(null),
             'awaiting_purchase' => $this->requisitionLineDetails(false),
             'purchased' => $this->purchasedDetails(),
@@ -365,6 +368,29 @@ class DashboardService
             ])->values()->all(),
             'total' => round((float) $rows->sum('value'), 2),
             'total_label' => 'Total spent on goods',
+        ];
+    }
+
+    /** Who is still holding company money, and how much. */
+    private function walletDetails(): array
+    {
+        $rows = User::query()
+            ->notVoided()
+            ->where('balance', '<>', 0)
+            ->orderByDesc('balance')
+            ->get(['name', 'email', 'balance']);
+
+        return [
+            'title' => 'Money Still With Staff',
+            'subtitle' => 'Cash you handed out that has not been spent yet. This is a live balance — it is not affected by the date filter, exactly like stock on the shelf. A negative balance means the employee paid out of their own pocket and the company owes them.',
+            'columns' => ['Staff', 'Email', 'Still holding'],
+            'rows' => $rows->map(fn (User $user) => [
+                $user->name,
+                $user->email,
+                ((float) $user->balance < 0 ? '− ' : '').$this->taka(abs((float) $user->balance)),
+            ])->all(),
+            'total' => round((float) $rows->sum('balance'), 2),
+            'total_label' => 'Total still with staff',
         ];
     }
 
@@ -622,6 +648,34 @@ class DashboardService
         return [
             $from->copy()->startOfDay()->toDateTimeString(),
             $to->copy()->endOfDay()->toDateTimeString(),
+        ];
+    }
+
+    /**
+     * Money handed to staff that they have NOT spent yet — still sitting in their wallets.
+     *
+     * Deliberately NOT date-filtered, like stock on hand: a balance is a point-in-time
+     * fact, not a period total. Within a single month, "funds given − spent" is only the
+     * net movement for that month, which is not the same thing as what is left over, and
+     * calling that "remaining" would be a lie.
+     */
+    private function wallets(): array
+    {
+        $row = User::query()
+            ->notVoided()
+            ->selectRaw('
+                COUNT(CASE WHEN balance <> 0 THEN 1 END) as holders,
+                COALESCE(SUM(balance), 0) as total,
+                COALESCE(SUM(CASE WHEN balance < 0 THEN -balance ELSE 0 END), 0) as owed
+            ')
+            ->first();
+
+        return [
+            'total' => round((float) $row->total, 2),
+            'holders' => (int) $row->holders,
+            // A negative wallet means the employee spent out of their own pocket — the
+            // company owes them that money back.
+            'owed' => round((float) $row->owed, 2),
         ];
     }
 

@@ -20,41 +20,51 @@
     [$border, $iconTone] = $tones[$tone] ?? $tones['slate'];
 
     $tag = $metric ? 'button' : 'div';
+
+    // h-full + flex column: cards in a grid row stretch to the tallest one, and the
+    // pieces inside line up across all of them instead of floating at their own heights.
+    $shell = 'flex h-full flex-col rounded-2xl border bg-white p-5 text-left shadow-sm '
+        .'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md '.$border;
 @endphp
 
 <{{ $tag }}
     @if ($metric)
         type="button"
-        class="js-metric group w-full cursor-pointer rounded-2xl border bg-white p-5 text-left shadow-sm
-               transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md {{ $border }}"
+        class="js-metric group w-full cursor-pointer {{ $shell }}"
         data-metric="{{ $metric }}"
     @else
-        class="rounded-2xl border bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md {{ $border }}"
+        class="{{ $shell }}"
     @endif
 >
+    {{-- Label + icon. min-h reserves two lines, so a one-line label leaves the same
+         gap as a wrapping one and every value below starts on the same baseline. --}}
     <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{{ $label }}</p>
-            <p class="mt-2 truncate text-xl font-bold tracking-tight text-[#17211c]">{{ $value }}</p>
-            @if ($hint)
-                <p class="mt-1 truncate text-[11px] font-medium text-slate-400">{{ $hint }}</p>
-            @endif
-
-            @if ($metric)
-                <p class="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400
-                          transition-colors group-hover:text-indigo-600">
-                    Click to see where this came from
-                    <svg class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
-                         fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </p>
-            @endif
-        </div>
+        <p class="min-h-8 text-[11px] font-semibold uppercase leading-4 tracking-wider text-slate-400">
+            {{ $label }}
+        </p>
         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {{ $iconTone }}">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/>
             </svg>
         </span>
     </div>
+
+    <p class="mt-1 truncate text-xl font-bold tracking-tight text-[#17211c]">{{ $value }}</p>
+
+    @if ($hint)
+        {{-- Two lines, wrapped rather than cut off mid-word. --}}
+        <p class="mt-1 min-h-8 text-[11px] font-medium leading-4 text-slate-400">{{ $hint }}</p>
+    @endif
+
+    @if ($metric)
+        {{-- mt-auto pins this to the bottom, so the links align across the row. --}}
+        <p class="mt-auto pt-2.5 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400
+                  transition-colors group-hover:text-indigo-600">
+            <span>See the details</span>
+            <svg class="h-3 w-3 shrink-0 transition-transform group-hover:translate-x-0.5"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+        </p>
+    @endif
 </{{ $tag }}>
